@@ -1,7 +1,7 @@
 import Stripe from 'stripe'
 import { env } from '../config/env'
 
-export const stripe = new Stripe(env.stripeSecretKey, { apiVersion: '2024-12-18.acacia' })
+export const stripe = new Stripe(env.stripeSecretKey, { apiVersion: '2023-10-16' })
 
 export async function createCustomer(email: string, name?: string): Promise<string> {
   const customer = await stripe.customers.create({ email, name })

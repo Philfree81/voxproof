@@ -44,11 +44,10 @@ export async function register(req: Request, res: Response) {
       passwordHash,
       firstName,
       lastName,
-      subscription: {
+      subscriptions: {
         create: {
           stripeCustomerId,
-          plan: 'STARTER',
-          status: 'TRIALING',
+          status: 'CANCELED',   // no active subscription until payment
         },
       },
     },
@@ -81,7 +80,6 @@ export async function login(req: Request, res: Response) {
       firstName: user.firstName,
       lastName: user.lastName,
       kycStatus: user.kycStatus,
-      walletAddress: user.walletAddress,
     },
   })
 }
@@ -91,24 +89,11 @@ export async function getMe(req: Request & { userId?: string }, res: Response) {
     where: { id: req.userId },
     select: {
       id: true, email: true, firstName: true, lastName: true,
-      kycStatus: true, walletAddress: true, emailVerified: true,
-      createdAt: true, subscription: true,
+      kycStatus: true, emailVerified: true,
+      createdAt: true, subscriptions: true,
     },
   })
   if (!user) return res.status(404).json({ error: 'User not found' })
   return res.json(user)
 }
 
-export async function connectWallet(req: Request & { userId?: string }, res: Response) {
-  const { walletAddress } = req.body
-  if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-    return res.status(400).json({ error: 'Invalid wallet address' })
-  }
-
-  const user = await prisma.user.update({
-    where: { id: req.userId },
-    data: { walletAddress },
-    select: { id: true, walletAddress: true },
-  })
-  return res.json(user)
-}

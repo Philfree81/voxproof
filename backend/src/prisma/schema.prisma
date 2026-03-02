@@ -13,88 +13,80 @@ enum KycStatus {
   REJECTED
 }
 
-enum SubscriptionPlan {
-  STARTER
-  PRO
-  ENTERPRISE
+enum SessionStatus {
+  RECORDING    // user is recording the 5 texts
+  PROCESSING   // sent to Python processor
+  ANCHORED     // hash stored on blockchain
+  FAILED       // processing or anchoring failed
 }
 
 enum SubscriptionStatus {
   ACTIVE
   CANCELED
   PAST_DUE
-  TRIALING
 }
 
 model User {
-  id                    String             @id @default(uuid())
-  email                 String             @unique
-  passwordHash          String
-  walletAddress         String?            @unique
-  firstName             String?
-  lastName              String?
-  kycStatus             KycStatus          @default(PENDING)
-  kycVerificationId     String?            // Stripe Identity verification session ID
-  kycVerifiedAt         DateTime?
-  emailVerified         Boolean            @default(false)
+  id                     String         @id @default(uuid())
+  email                  String         @unique
+  passwordHash           String
+  firstName              String?
+  lastName               String?
+  kycStatus              KycStatus      @default(PENDING)
+  kycVerificationId      String?
+  kycVerifiedAt          DateTime?
+  emailVerified          Boolean        @default(false)
   emailVerificationToken String?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
 
-  records               VoiceRecord[]
-  subscription          Subscription?
+  sessions               VoiceSession[]
+  subscriptions          Subscription[]
 
   @@map("users")
 }
 
-model VoiceRecord {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String
-  description String?
-  ipfsCid     String   @unique
-  audioHash   String   @unique  // SHA-256 hex of the audio file
-  fileSizeBytes Int
-  durationSeconds Float?
-  mimeType    String   @default("audio/webm")
-  createdAt   DateTime @default(now())
+model VoiceSession {
+  id             String        @id @default(uuid())
+  userId         String
+  language       String        @default("fr")  // fr, en, es
+  textSetIndex   Int                            // 0-4 : which set of 5 texts was used
+  status         SessionStatus @default(RECORDING)
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  proof       Proof?
+  // Acoustic signature (filled after processing)
+  acousticHash   String?       @unique          // hash of ComParE features — anchored on blockchain
+  txHash         String?       @unique          // blockchain transaction hash
+  blockNumber    Int?
+  anchoredAt     DateTime?
 
-  @@map("voice_records")
-}
+  // Certificate
+  pdfBase64      String?       @db.Text         // stored for re-download
+  validUntil     DateTime?                      // = subscription.currentPeriodEnd at creation time
+  emailSentAt    DateTime?
 
-model Proof {
-  id              String   @id @default(uuid())
-  recordId        String   @unique
-  txHash          String   @unique  // Avalanche transaction hash
-  contractProofId Int                // On-chain proof ID from the contract
-  blockNumber     Int
-  chainId         Int      @default(43114)
-  network         String   @default("avalanche")
-  anchoredAt      DateTime @default(now())
-  revoked         Boolean  @default(false)
-  revokedAt       DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  record          VoiceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String?
 
-  @@map("proofs")
+  @@map("voice_sessions")
 }
 
 model Subscription {
   id                   String             @id @default(uuid())
-  userId               String             @unique
-  stripeCustomerId     String             @unique
+  userId               String
+  stripeCustomerId     String
   stripeSubscriptionId String?            @unique
-  plan                 SubscriptionPlan   @default(STARTER)
-  status               SubscriptionStatus @default(TRIALING)
+  status               SubscriptionStatus @default(ACTIVE)
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions             VoiceSession[]
 
   @@map("subscriptions")
 }

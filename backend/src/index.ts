@@ -5,10 +5,9 @@ import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
 import { env } from './config/env'
 import authRoutes from './routes/auth'
-import recordRoutes from './routes/records'
-import proofRoutes from './routes/proofs'
 import kycRoutes from './routes/kyc'
 import paymentRoutes from './routes/payments'
+import sessionRoutes from './routes/sessions'
 
 const app = express()
 
@@ -30,10 +29,9 @@ app.use(express.urlencoded({ extended: true }))
 
 // ─── Routes ─────────────────────────────────────────────
 app.use('/api/auth', authRoutes)
-app.use('/api/records', recordRoutes)
-app.use('/api/proofs', proofRoutes)
 app.use('/api/kyc', kycRoutes)
 app.use('/api/payments', paymentRoutes)
+app.use('/api/sessions', sessionRoutes)
 
 // ─── Health check ───────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))

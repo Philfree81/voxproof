@@ -28,6 +28,9 @@
     "stripe": "^14.18.0",
     "zod": "^3.22.0"
   },
+  "prisma": {
+    "schema": "src/prisma/schema.prisma"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",

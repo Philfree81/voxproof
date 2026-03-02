@@ -1,109 +1,199 @@
 # VoxProof
 
-VoxProof is a SaaS platform that lets users record, store, and notarize their voice recordings on the Avalanche blockchain. Each recording gets a permanent, tamper-proof proof certificate backed by IPFS and an on-chain transaction. Users are KYC-verified before they can anchor proofs.
+VoxProof est une plateforme SaaS de certification d'identité vocale. L'utilisateur enregistre 5 textes imposés, le système extrait sa signature acoustique, l'ancre sur la blockchain Avalanche et émet un certificat PDF horodaté.
 
 ---
 
-## How It Works
+## Comment ça marche
 
-1. **Register** — Create an account with email & password
-2. **KYC** — Verify your identity with ID card + selfie (Stripe Identity)
-3. **Connect Wallet** — Connect MetaMask on Avalanche C-Chain
-4. **Upload / Record** — Record your voice or upload an audio file
-5. **Anchor on Chain** — Audio is pinned to IPFS; SHA-256 hash stored on Avalanche
-6. **Get Your Proof** — Certificate with IPFS link + transaction hash
+1. **Inscription** — email + mot de passe
+2. **KYC** — vérification d'identité (carte d'identité + selfie via Stripe Identity)
+3. **Enregistrement** — 5 textes lus à voix haute dans le navigateur
+4. **Abonnement** — 12 €/an, requis au moment de l'analyse
+5. **Certification** — extraction de la signature acoustique, ancrage blockchain, émission du certificat PDF
+6. **Renouvellement automatique** — chaque renouvellement annuel prolonge la validité de tous les certificats existants
 
 ---
 
-## Tech Stack
+## Signature acoustique — les deux algorithmes
 
-| Layer | Technology |
+Le traitement audio repose sur **OpenSMILE**, bibliothèque de référence en paralinguistique computationnelle.
+
+### 1. eGeMAPS v02 — 88 features (visualisation)
+
+*Extended Geneva Minimalistic Acoustic Parameter Set*
+
+Ensemble standardisé et interprétable conçu pour capturer les caractéristiques vocales les plus stables et cliniquement pertinentes :
+
+| Catégorie | Features |
+|---|---|
+| Fréquence fondamentale (F0) | hauteur de la voix, micro-variations |
+| Jitter / Shimmer | instabilités de fréquence et d'amplitude |
+| Formants (F1, F2, F3) | timbre, résonances du conduit vocal |
+| Énergie / Loudness | dynamique de la parole |
+| HNR | Harmonics-to-Noise Ratio — qualité vocale |
+| Spectral flux | évolution temporelle du spectre |
+
+Utilisé pour générer le **radar chart** (profil acoustique) et le **properties chart** dans le certificat PDF.
+
+### 2. ComParE 2016 — 6373 features (empreinte cryptographique)
+
+*Computational Paralinguistics Challenge*
+
+Ensemble exhaustif issu de la recherche en paralinguistique computationnelle. Inclut tout eGeMAPS plus :
+
+- LPC (Linear Predictive Coding) et MFCC étendus avec delta et delta-delta
+- Statistiques temporelles fines : percentiles, moments, pentes, courbures
+- Features spectrales sur de multiples granularités temporelles
+
+Les 6 373 features sont extraites sur chacun des 5 enregistrements, concaténées (31 865 valeurs), puis passées en **SHA-256** → hash ancré sur Avalanche.
+
+**Pourquoi deux ensembles ?** eGeMAPS (88 dims) est lisible et visualisable. ComParE (6 373 dims) est quasi-impossible à falsifier : chaque micro-variation du signal change radicalement le hash. L'un sert à l'affichage, l'autre à la preuve cryptographique.
+
+---
+
+## Stack technique
+
+| Couche | Technologie |
 |---|---|
 | Frontend | React + Vite + TypeScript + TailwindCSS |
 | Backend | Node.js + Express + TypeScript + Prisma |
-| Database | PostgreSQL |
-| Audio Storage | IPFS via Pinata |
+| Base de données | PostgreSQL |
+| Processeur audio | Python + FastAPI + OpenSMILE + PyAV |
 | Blockchain | Avalanche C-Chain (Solidity + Hardhat) |
-| Web3 | ethers.js + MetaMask |
 | Auth | JWT + bcrypt |
-| Payments | Stripe |
+| Paiements | Stripe (abonnement annuel) |
 | KYC | Stripe Identity |
 | DevOps | Docker + docker-compose |
 
 ---
 
-## Getting Started
+## Architecture
 
-### Prerequisites
-- Node.js >= 18
-- Docker & docker-compose
-- MetaMask browser extension
-- Pinata account
-- Stripe account (with Identity enabled)
-
-### 1. Configure environment
-```bash
-cp .env.example .env
-# Fill in your keys in .env
+```
+voxproof/
+├── frontend/       # React + Vite (port 5174)
+├── backend/        # Express API + Prisma ORM (port 4000)
+├── processor/      # Python FastAPI — extraction acoustique (port 5000)
+├── contracts/      # Smart contracts Solidity + Hardhat
+├── docker-compose.yml
+└── .env.example
 ```
 
-### 2. Start the database
+Flux de données :
+
+```
+Navigateur → Backend → Processor (Python)
+                           ↓
+                    OpenSMILE (eGeMAPS + ComParE)
+                           ↓
+                    SHA-256 hash → Avalanche blockchain
+                           ↓
+                    PDF certificat → Stocké en DB
+```
+
+---
+
+## Démarrage local
+
+### Prérequis
+
+- Node.js >= 18
+- Python >= 3.10
+- Docker & docker-compose
+- Compte Stripe (avec Identity activé)
+
+### 1. Variables d'environnement
+
+```bash
+cp .env.example .env
+# Renseigner les clés dans .env
+```
+
+### 2. Base de données
+
 ```bash
 docker-compose up postgres -d
 ```
 
 ### 3. Backend
+
 ```bash
 cd backend
 npm install
-npx prisma migrate dev
+npx prisma migrate dev --schema=src/prisma/schema.prisma
 npm run dev
 ```
 
-### 4. Frontend
+### 4. Processeur Python
+
+```bash
+cd processor
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --port 5000
+```
+
+### 5. Frontend
+
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev --host 0.0.0.0 --port 5174
 ```
 
-### 5. Deploy smart contract (Fuji testnet first)
+### 6. Smart contract (local Hardhat)
+
 ```bash
 cd contracts
 npm install
-npx hardhat run scripts/deploy.ts --network fuji
-# Copy deployed address to .env → VOXPROOF_CONTRACT_ADDRESS
+npx hardhat node                          # terminal dédié
+npx hardhat run scripts/deploy.ts --network localhost
+# Copier l'adresse deployée dans .env → VOXPROOF_CONTRACT_ADDRESS
+```
+
+### 7. Webhooks Stripe (local)
+
+```bash
+~/bin/stripe listen --forward-to localhost:4000/api/payments/webhook
+# Copier le whsec_... dans .env → STRIPE_WEBHOOK_SECRET
 ```
 
 ---
 
-## Project Structure
+## Réseaux blockchain
 
-```
-voxproof/
-├── frontend/          # React + Vite app
-├── backend/           # Express API + Prisma ORM
-├── contracts/         # Solidity smart contracts
-├── docker-compose.yml
-└── .env.example
-```
+Configurable via `BLOCKCHAIN_RPC_URL` dans `.env` :
 
----
-
-## User Flow
-
-```
-Register → Email verify → KYC (ID card) → Connect wallet → Record → Proof
-```
-
-KYC statuses: pending → approved → rejected
+| Réseau | URL |
+|---|---|
+| Hardhat local (dev) | `http://127.0.0.1:8545` |
+| Fuji testnet Avalanche | `https://api.avax-test.network/ext/bc/C/rpc` |
+| Mainnet Avalanche | `https://api.avax.network/ext/bc/C/rpc` |
 
 ---
 
-## Plans
+## Tarification
 
-| Plan | Price | Recordings/month |
+| Offre | Prix | Certifications |
 |---|---|---|
-| Starter | €9/mo | 10 |
-| Pro | €29/mo | 100 |
-| Enterprise | Custom | Unlimited |
+| Abonnement annuel | 12 €/an | Illimitées |
+
+Renouvellement automatique via Stripe. À chaque renouvellement, la date de validité de tous les certificats existants est prolongée d'un an.
+
+---
+
+## Statuts KYC
+
+```
+PENDING → APPROVED
+        → REJECTED
+```
+
+## Statuts de session vocale
+
+```
+RECORDING → PROCESSING → ANCHORED
+                       → FAILED
+```

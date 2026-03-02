@@ -4,39 +4,42 @@ import { stripe, createCheckoutSession, cancelSubscription } from '../services/s
 import { AuthRequest } from '../middleware/auth'
 import { env } from '../config/env'
 
-const PRICE_MAP: Record<string, string> = {
-  starter: env.stripePriceStarter,
-  pro: env.stripePricePro,
-}
-
 export async function createSubscription(req: AuthRequest, res: Response) {
-  const { plan } = req.body
-  if (!plan || !PRICE_MAP[plan]) {
-    return res.status(400).json({ error: 'Invalid plan. Choose: starter, pro' })
-  }
-
-  const subscription = await prisma.subscription.findUnique({ where: { userId: req.userId } })
+  const subscription = await prisma.subscription.findFirst({ where: { userId: req.userId } })
   if (!subscription) return res.status(404).json({ error: 'Subscription record not found' })
+
+  if (subscription.status === 'ACTIVE' && subscription.stripeSubscriptionId) {
+    return res.status(400).json({ error: 'You already have an active subscription' })
+  }
 
   const url = await createCheckoutSession(
     subscription.stripeCustomerId,
-    PRICE_MAP[plan],
+    env.stripePriceAnnual,
     req.userId!,
     `${env.frontendUrl}/dashboard?payment=success`,
-    `${env.frontendUrl}/pricing?payment=canceled`
+    `${env.frontendUrl}/dashboard?payment=canceled`,
   )
 
   return res.json({ url })
 }
 
+export async function getSubscriptionStatus(req: AuthRequest, res: Response) {
+  const subscription = await prisma.subscription.findFirst({
+    where: { userId: req.userId },
+    select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, stripeSubscriptionId: true },
+  })
+  if (!subscription) return res.status(404).json({ error: 'Not found' })
+  return res.json(subscription)
+}
+
 export async function cancelPlan(req: AuthRequest, res: Response) {
-  const subscription = await prisma.subscription.findUnique({ where: { userId: req.userId } })
+  const subscription = await prisma.subscription.findFirst({ where: { userId: req.userId } })
   if (!subscription?.stripeSubscriptionId) {
     return res.status(400).json({ error: 'No active subscription' })
   }
 
   await cancelSubscription(subscription.stripeSubscriptionId)
-  await prisma.subscription.update({
+  await prisma.subscription.updateMany({
     where: { userId: req.userId },
     data: { cancelAtPeriodEnd: true },
   })
@@ -59,18 +62,53 @@ export async function stripeWebhook(req: Request, res: Response) {
       const session = event.data.object as any
       const userId = session.metadata?.userId
       if (userId && session.subscription) {
-        const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription)
-        const priceId = stripeSubscription.items.data[0]?.price.id
-        const plan = priceId === env.stripePriceStarter ? 'STARTER' : 'PRO'
-        await prisma.subscription.update({
+        const stripeSub = await stripe.subscriptions.retrieve(session.subscription)
+        await prisma.subscription.updateMany({
           where: { userId },
           data: {
             stripeSubscriptionId: session.subscription,
-            plan,
             status: 'ACTIVE',
-            currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+            currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+            cancelAtPeriodEnd: false,
           },
         })
+      }
+      break
+    }
+    case 'invoice.payment_succeeded': {
+      const invoice = event.data.object as any
+      if (invoice.subscription) {
+        const stripeSub = await stripe.subscriptions.retrieve(invoice.subscription) as any
+        const userId = stripeSub.metadata?.userId
+        const newPeriodEnd = new Date(stripeSub.current_period_end * 1000)
+
+        if (userId) {
+          await prisma.subscription.updateMany({
+            where: { userId },
+            data: { stripeSubscriptionId: invoice.subscription, status: 'ACTIVE', currentPeriodEnd: newPeriodEnd },
+          })
+          // Extend all ANCHORED certifications (renewal = automatic prolongation)
+          await prisma.voiceSession.updateMany({
+            where: { userId, status: 'ANCHORED' },
+            data: { validUntil: newPeriodEnd },
+          })
+        } else {
+          // Renewal: stripeSubscriptionId is already set, find userId from our DB
+          const sub = await prisma.subscription.findFirst({
+            where: { stripeSubscriptionId: invoice.subscription },
+            select: { userId: true },
+          })
+          await prisma.subscription.updateMany({
+            where: { stripeSubscriptionId: invoice.subscription },
+            data: { status: 'ACTIVE', currentPeriodEnd: newPeriodEnd },
+          })
+          if (sub?.userId) {
+            await prisma.voiceSession.updateMany({
+              where: { userId: sub.userId, status: 'ANCHORED' },
+              data: { validUntil: newPeriodEnd },
+            })
+          }
+        }
       }
       break
     }

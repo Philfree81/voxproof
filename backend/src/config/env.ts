@@ -1,5 +1,6 @@
 import dotenv from 'dotenv'
-dotenv.config()
+import path from 'path'
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') })
 
 function required(key: string): string {
   const value = process.env[key]
@@ -15,16 +16,19 @@ export const env = {
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 
-  pinataApiKey: required('PINATA_API_KEY'),
-  pinataSecretApiKey: required('PINATA_SECRET_API_KEY'),
-
-  avalancheRpcUrl: process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc',
-  avalancheTestnetRpcUrl: process.env.AVALANCHE_TESTNET_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc',
+  // Active blockchain — set BLOCKCHAIN_RPC_URL to switch network:
+  //   local:   http://127.0.0.1:8545
+  //   fuji:    https://api.avax-test.network/ext/bc/C/rpc
+  //   mainnet: https://api.avax.network/ext/bc/C/rpc
+  blockchainRpcUrl: process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:8545',
   contractAddress: required('VOXPROOF_CONTRACT_ADDRESS'),
   deployerPrivateKey: required('DEPLOYER_PRIVATE_KEY'),
 
   stripeSecretKey: required('STRIPE_SECRET_KEY'),
   stripeWebhookSecret: required('STRIPE_WEBHOOK_SECRET'),
-  stripePriceStarter: required('STRIPE_PRICE_STARTER'),
-  stripePricePro: required('STRIPE_PRICE_PRO'),
+  stripePriceAnnual: process.env.STRIPE_PRICE_ANNUAL || '',
+
+  processorUrl: process.env.PROCESSOR_URL || 'http://localhost:5000',
+
+  brevoApiKey: process.env.BREVO_API_KEY || '',
 }

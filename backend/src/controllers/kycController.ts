@@ -22,6 +22,17 @@ export async function startKyc(req: AuthRequest, res: Response) {
   return res.json({ url, sessionId })
 }
 
+export async function devApproveKyc(req: AuthRequest, res: Response) {
+  if (env.nodeEnv === 'production') {
+    return res.status(403).json({ error: 'Not available in production' })
+  }
+  await prisma.user.update({
+    where: { id: req.userId },
+    data: { kycStatus: 'APPROVED', kycVerifiedAt: new Date() },
+  })
+  return res.json({ kycStatus: 'APPROVED' })
+}
+
 export async function getKycStatus(req: AuthRequest, res: Response) {
   const user = await prisma.user.findUnique({
     where: { id: req.userId },
