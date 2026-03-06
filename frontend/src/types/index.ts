@@ -1,6 +1,6 @@
 export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type SessionStatus = 'RECORDING' | 'PROCESSING' | 'ANCHORED' | 'FAILED'
-export type SubscriptionStatus = 'ACTIVE' | 'CANCELED' | 'PAST_DUE'
+export type ProductType = 'ANNUAL' | 'LIFETIME'
 export type Language = 'fr' | 'en' | 'es'
 
 export interface User {
@@ -9,9 +9,17 @@ export interface User {
   firstName?: string
   lastName?: string
   kycStatus: KycStatus
+  isAdmin: boolean
   emailVerified: boolean
   createdAt: string
-  subscriptions?: Subscription[]
+}
+
+export interface Purchase {
+  id: string
+  productType: ProductType
+  usedAt?: string | null
+  validUntil?: string | null
+  createdAt: string
 }
 
 export interface VoiceSession {
@@ -24,15 +32,12 @@ export interface VoiceSession {
   txHash?: string
   blockNumber?: number
   anchoredAt?: string
-  validUntil?: string
+  validUntil?: string | null
   emailSentAt?: string
   createdAt: string
-  subscription?: Subscription
 }
 
-export interface Subscription {
-  id: string
-  status: SubscriptionStatus
-  currentPeriodEnd?: string
-  cancelAtPeriodEnd: boolean
+export interface AdminUser extends User {
+  purchases: Purchase[]
+  sessions: { id: string; status: SessionStatus; createdAt: string }[]
 }

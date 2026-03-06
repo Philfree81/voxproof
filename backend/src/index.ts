@@ -8,6 +8,7 @@ import authRoutes from './routes/auth'
 import kycRoutes from './routes/kyc'
 import paymentRoutes from './routes/payments'
 import sessionRoutes from './routes/sessions'
+import adminRoutes from './routes/admin'
 
 const app = express()
 
@@ -32,6 +33,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/kyc', kycRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/sessions', sessionRoutes)
+app.use('/api/admin', adminRoutes)
 
 // ─── Health check ───────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))

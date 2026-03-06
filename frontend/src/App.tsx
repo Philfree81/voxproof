@@ -4,6 +4,7 @@ import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import KycPage from './pages/KycPage'
 import SessionPage from './pages/SessionPage'
+import AdminPage from './pages/AdminPage'
 import LoginForm from './components/auth/LoginForm'
 import RegisterForm from './components/auth/RegisterForm'
 
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/kyc" element={<PrivateRoute><KycPage /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/session/new" element={<PrivateRoute><SessionPage /></PrivateRoute>} />
+        <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

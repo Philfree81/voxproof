@@ -23,6 +23,13 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   }
 }
 
+export async function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  if (!req.userId) return res.status(401).json({ error: 'Unauthorized' })
+  const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { isAdmin: true } })
+  if (!user?.isAdmin) return res.status(403).json({ error: 'Admin access required' })
+  next()
+}
+
 export async function requireKyc(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.userId) return res.status(401).json({ error: 'Unauthorized' })
 
