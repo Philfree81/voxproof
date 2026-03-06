@@ -85,6 +85,13 @@ export default function KycPage() {
 
           {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
 
+          <div className="mt-4">
+            <button onClick={() => navigate('/dashboard')}
+              className="text-sm text-gray-400 hover:text-gray-600 hover:underline">
+              Passer pour l'instant — je vérifierai mon identité plus tard
+            </button>
+          </div>
+
           <div className="mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
             <p>Your documents are processed securely by Stripe Identity.</p>
             <p>VoxProof does not store your ID documents.</p>

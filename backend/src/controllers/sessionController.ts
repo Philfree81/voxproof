@@ -45,7 +45,8 @@ export async function createSession(req: AuthRequest, res: Response) {
       userId: user.id,
       language,
       textSetIndex: setIndex,
-      status: 'PROCESSING',\n      kycVerified: user.kycStatus === 'APPROVED',
+      status: 'PROCESSING',
+      kycVerified: user.kycStatus === 'APPROVED',
       validUntil,
     },
   })
