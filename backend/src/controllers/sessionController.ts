@@ -135,7 +135,7 @@ export async function createSession(req: AuthRequest, res: Response) {
       acousticHash: final.acoustic_hash,
       txHash,
       blockNumber,
-      validUntil: validUntil.toISOString(),
+      validUntil: validUntil ? validUntil.toISOString() : null,
       radarChart: final.radar_chart,
       propertiesChart: final.properties_chart,
       pdf: final.pdf,

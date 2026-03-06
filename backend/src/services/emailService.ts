@@ -11,7 +11,7 @@ interface SendCertificateParams {
   txHash: string
   acousticHash: string
   blockNumber: number
-  validUntil: Date
+  validUntil: Date | null
   pdfBase64: string
   audioFiles: Express.Multer.File[]
 }
@@ -87,16 +87,24 @@ export async function sendCertificateEmail(params: SendCertificateParams): Promi
 
   const { to, sessionId, txHash, acousticHash, blockNumber, validUntil, pdfBase64, audioFiles } = params
 
-  const attachments: Attachment[] = [
-    {
-      name: `voxproof-certificate-${sessionId.slice(0, 8)}.pdf`,
-      content: pdfBase64,
-    },
-    ...audioFiles.map((file, i) => ({
-      name: `enregistrement-${i + 1}${getExtension(file.originalname)}`,
-      content: file.buffer.toString('base64'),
-    })),
-  ]
+  const pdfAttachment: Attachment = {
+    name: `voxproof-certificate-${sessionId.slice(0, 8)}.pdf`,
+    content: pdfBase64,
+  }
+  const audioAttachments: Attachment[] = audioFiles.map((file, i) => ({
+    name: `enregistrement-${i + 1}${getExtension(file.originalname)}`,
+    content: file.buffer.toString('base64'),
+  }))
+
+  // Brevo limite les pièces jointes à ~5 MB (base64). Si les audios dépassent 4 MB, on ne joint que le PDF.
+  const audioSizeBytes = audioAttachments.reduce((sum, a) => sum + a.content.length, 0)
+  const attachments: Attachment[] = audioSizeBytes < 4 * 1024 * 1024
+    ? [pdfAttachment, ...audioAttachments]
+    : [pdfAttachment]
+
+  const audioNote = audioSizeBytes >= 4 * 1024 * 1024
+    ? '<p style="color:#b45309;font-size:13px;">⚠ Vos fichiers audio sont trop volumineux pour être joints par email. Vous pouvez les télécharger depuis votre tableau de bord.</p>'
+    : ''
 
   const htmlBody = `
 <!DOCTYPE html>
@@ -114,6 +122,7 @@ export async function sendCertificateEmail(params: SendCertificateParams): Promi
 
   <p>Votre empreinte vocale a été ancrée avec succès sur la blockchain Avalanche.
   Vous trouverez en pièce jointe votre certificat PDF ainsi que vos 5 enregistrements audio.</p>
+  ${audioNote}
 
   <div style="background: #f5f5f5; border-left: 4px solid #e94560; padding: 15px; margin: 20px 0; border-radius: 4px;">
     <h3 style="margin-top: 0; color: #1a1a2e;">Détails de la certification</h3>
@@ -136,7 +145,7 @@ export async function sendCertificateEmail(params: SendCertificateParams): Promi
       </tr>
       <tr>
         <td style="padding: 6px 0; color: #666;">Valide jusqu'au</td>
-        <td style="padding: 6px 0;">${validUntil.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</td>
+        <td style="padding: 6px 0;">${validUntil ? validUntil.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : 'À vie'}</td>
       </tr>
     </table>
   </div>
