@@ -44,12 +44,7 @@ export async function register(req: Request, res: Response) {
       passwordHash,
       firstName,
       lastName,
-      subscriptions: {
-        create: {
-          stripeCustomerId,
-          status: 'CANCELED',   // no active subscription until payment
-        },
-      },
+      stripeCustomerId,
     },
     select: { id: true, email: true, firstName: true, lastName: true, kycStatus: true },
   })

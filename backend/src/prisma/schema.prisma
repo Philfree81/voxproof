@@ -20,10 +20,9 @@ enum SessionStatus {
   FAILED       // processing or anchoring failed
 }
 
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  PAST_DUE
+enum ProductType {
+  ANNUAL    // 1 year access
+  LIFETIME  // permanent access
 }
 
 model User {
@@ -32,6 +31,7 @@ model User {
   passwordHash           String
   firstName              String?
   lastName               String?
+  stripeCustomerId       String?
   kycStatus              KycStatus      @default(PENDING)
   kycVerificationId      String?
   kycVerifiedAt          DateTime?
@@ -41,52 +41,52 @@ model User {
   updatedAt              DateTime       @updatedAt
 
   sessions               VoiceSession[]
-  subscriptions          Subscription[]
+  purchases              Purchase[]
 
   @@map("users")
+}
+
+// One purchase = one blockchain certification credit
+model Purchase {
+  id                    String      @id @default(uuid())
+  userId                String
+  stripePaymentIntentId String?     @unique
+  stripePriceId         String
+  productType           ProductType
+  usedAt                DateTime?   // null = credit available, set when session is anchored
+  validUntil            DateTime?   // null = lifetime
+
+  createdAt             DateTime    @default(now())
+
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session               VoiceSession?
+
+  @@map("purchases")
 }
 
 model VoiceSession {
   id             String        @id @default(uuid())
   userId         String
-  language       String        @default("fr")  // fr, en, es
-  textSetIndex   Int                            // 0-4 : which set of 5 texts was used
+  purchaseId     String?       @unique
+  language       String        @default("fr")
+  textSetIndex   Int
+
   status         SessionStatus @default(RECORDING)
 
-  // Acoustic signature (filled after processing)
-  acousticHash   String?       @unique          // hash of ComParE features — anchored on blockchain
-  txHash         String?       @unique          // blockchain transaction hash
+  acousticHash   String?       @unique
+  txHash         String?       @unique
   blockNumber    Int?
   anchoredAt     DateTime?
 
-  // Certificate
-  pdfBase64      String?       @db.Text         // stored for re-download
-  validUntil     DateTime?                      // = subscription.currentPeriodEnd at creation time
+  pdfBase64      String?       @db.Text
+  validUntil     DateTime?     // null = lifetime
   emailSentAt    DateTime?
 
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
-  subscriptionId String?
+  purchase       Purchase?     @relation(fields: [purchaseId], references: [id])
 
   @@map("voice_sessions")
-}
-
-model Subscription {
-  id                   String             @id @default(uuid())
-  userId               String
-  stripeCustomerId     String
-  stripeSubscriptionId String?            @unique
-  status               SubscriptionStatus @default(ACTIVE)
-  currentPeriodEnd     DateTime?
-  cancelAtPeriodEnd    Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessions             VoiceSession[]
-
-  @@map("subscriptions")
 }

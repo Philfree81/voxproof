@@ -17,10 +17,10 @@ export async function createCheckoutSession(
 ): Promise<string> {
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    mode: 'subscription',
+    mode: 'payment',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
-    metadata: { userId },
+    metadata: { userId, priceId },
     success_url: successUrl,
     cancel_url: cancelUrl,
   })
@@ -36,7 +36,6 @@ export async function createIdentityVerificationSession(
     metadata: { userId },
     options: {
       document: {
-        require_id_number: true,
         require_live_capture: true,
         require_matching_selfie: true,
       },
@@ -48,8 +47,4 @@ export async function createIdentityVerificationSession(
 
 export async function getIdentityVerificationSession(sessionId: string) {
   return stripe.identity.verificationSessions.retrieve(sessionId)
-}
-
-export async function cancelSubscription(subscriptionId: string): Promise<void> {
-  await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true })
 }

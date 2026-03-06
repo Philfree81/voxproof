@@ -21,13 +21,13 @@ export default function SessionPage() {
   const [audioUrls, setAudioUrls] = useState<string[]>([])
   const [result, setResult] = useState<any>(null)
   const [submitError, setSubmitError] = useState('')
-  const [hasActiveSub, setHasActiveSub] = useState<boolean | null>(null)
-  const [subscribing, setSubscribing] = useState(false)
+  const [hasCredit, setHasCredit] = useState<boolean | null>(null)
+  const [purchasing, setPurchasing] = useState(false)
 
   useEffect(() => {
     api.get('/payments/status')
-      .then(r => setHasActiveSub(r.data.status === 'ACTIVE'))
-      .catch(() => setHasActiveSub(false))
+      .then(r => setHasCredit(r.data.hasCredit))
+      .catch(() => setHasCredit(false))
   }, [])
 
   function formatDuration(s: number) {
@@ -65,39 +65,42 @@ export default function SessionPage() {
     setStep('recording')
   }
 
-  async function subscribe() {
-    setSubscribing(true)
+  async function purchase(priceId: string) {
+    setPurchasing(true)
+    // Open tab synchronously before any await to avoid popup blockers
+    const stripeTab = window.open('', '_blank')
     try {
-      const { data } = await api.post('/payments/subscribe')
-      // Open Stripe in a new tab — recordings stay intact in this page
-      const stripeTab = window.open(data.url, '_blank')
+      const { data } = await api.post('/payments/purchase', { priceId })
+      if (stripeTab) stripeTab.location.href = data.url
+      else window.location.href = data.url
 
       // Poll for payment confirmation every 2 s (max 10 min)
       const deadline = Date.now() + 10 * 60 * 1000
       const interval = setInterval(async () => {
         if (Date.now() > deadline) {
           clearInterval(interval)
-          setSubscribing(false)
+          setPurchasing(false)
           return
         }
         try {
           const r = await api.get('/payments/status')
-          if (r.data.status === 'ACTIVE') {
+          if (r.data.hasCredit) {
             clearInterval(interval)
             stripeTab?.close()
-            setHasActiveSub(true)
-            setSubscribing(false)
+            setHasCredit(true)
+            setPurchasing(false)
           }
         } catch { /* ignore */ }
       }, 2000)
     } catch {
-      setSubscribing(false)
+      stripeTab?.close()
+      setPurchasing(false)
     }
   }
 
   async function handleSubmit() {
-    if (!hasActiveSub) {
-      setSubmitError('subscription_required')
+    if (!hasCredit) {
+      setSubmitError('purchase_required')
       return
     }
     setStep('processing')
@@ -277,30 +280,39 @@ export default function SessionPage() {
           </div>
         ))}
 
-        {submitError && submitError !== 'subscription_required' && (
+        {submitError && submitError !== 'purchase_required' && (
           <p className="text-red-600 text-sm">{submitError}</p>
         )}
 
-        {hasActiveSub === false ? (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-center space-y-3">
-            <p className="text-sm font-medium text-indigo-900">
-              Un abonnement actif est requis pour certifier votre signature vocale.
-            </p>
-            <p className="text-xs text-indigo-600">12€ / an · Certifications illimitées</p>
-            {subscribing ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2 text-sm text-indigo-700">
-                  <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                  En attente de confirmation du paiement…
-                </div>
-                <p className="text-xs text-indigo-500">Complétez le paiement dans l'onglet Stripe qui vient de s'ouvrir</p>
+        {hasCredit === false ? (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 space-y-4">
+            <div className="text-center">
+              <p className="text-sm font-semibold text-indigo-900">Choisissez votre formule</p>
+              <p className="text-xs text-indigo-500 mt-1">Un achat = une signature vocale ancrée sur la blockchain</p>
+            </div>
+            {purchasing ? (
+              <div className="flex flex-col items-center gap-2 py-2">
+                <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-indigo-700">En attente de confirmation du paiement…</p>
+                <p className="text-xs text-indigo-400">Complétez le paiement dans l'onglet qui vient de s'ouvrir</p>
               </div>
             ) : (
-              <button
-                onClick={subscribe}
-                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700">
-                Souscrire — 12€/an →
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_ANNUAL)}
+                  className="flex flex-col items-center gap-1 bg-white border-2 border-indigo-300 hover:border-indigo-600 rounded-xl p-4 transition-colors">
+                  <span className="text-lg font-bold text-indigo-700">1 an</span>
+                  <span className="text-xs text-gray-500">Accès 12 mois</span>
+                  <span className="text-sm font-semibold text-gray-800 mt-1">9 €</span>
+                </button>
+                <button
+                  onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_LIFETIME)}
+                  className="flex flex-col items-center gap-1 bg-indigo-600 hover:bg-indigo-700 rounded-xl p-4 transition-colors">
+                  <span className="text-lg font-bold text-white">À vie</span>
+                  <span className="text-xs text-indigo-200">Accès permanent</span>
+                  <span className="text-sm font-semibold text-white mt-1">29 €</span>
+                </button>
+              </div>
             )}
           </div>
         ) : (

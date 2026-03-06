@@ -3,6 +3,7 @@ import { prisma } from '../config/database'
 import { AuthRequest } from '../middleware/auth'
 import { anchorHashOnChain } from '../services/blockchainService'
 import { processSession } from '../services/processorService'
+import { sendCertificateEmail } from '../services/emailService'
 import { env } from '../config/env'
 
 export async function createSession(req: AuthRequest, res: Response) {
@@ -17,23 +18,26 @@ export async function createSession(req: AuthRequest, res: Response) {
     return res.status(400).json({ error: 'textSetIndex must be 0-4' })
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId },
-    include: { subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 } },
-  })
+  const user = await prisma.user.findUnique({ where: { id: req.userId } })
   if (!user) return res.status(404).json({ error: 'User not found' })
 
-  const activeSub = user.subscriptions[0]
+  // Find an unused purchase credit
+  const purchase = await prisma.purchase.findFirst({
+    where: { userId: user.id, usedAt: null },
+    orderBy: { createdAt: 'desc' },
+  })
 
-  // Block if no active subscription (skip check in development)
+  // Block if no available credit (skip check in development)
   if (env.nodeEnv !== 'development') {
-    if (!activeSub || activeSub.status !== 'ACTIVE') {
-      return res.status(402).json({ error: 'subscription_required', message: 'An active subscription is required to create a session.' })
+    if (!purchase) {
+      return res.status(402).json({ error: 'purchase_required', message: 'A purchase is required to create a session.' })
     }
   }
 
-  // validUntil = subscription period end; fallback = 1 year from now for dev
-  const validUntil = activeSub?.currentPeriodEnd ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+  // validUntil: null = lifetime, date = annual expiry; dev fallback = 1 year
+  const validUntil = purchase
+    ? purchase.validUntil   // null for lifetime, Date for annual
+    : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
 
   // Create session in PROCESSING state
   const session = await prisma.voiceSession.create({
@@ -81,7 +85,7 @@ export async function createSession(req: AuthRequest, res: Response) {
 
     const anchoredAt = new Date()
 
-    // Step 4 — update session in DB (store PDF for re-download)
+    // Step 4 — update session + mark purchase as used
     await prisma.voiceSession.update({
       where: { id: session.id },
       data: {
@@ -91,8 +95,36 @@ export async function createSession(req: AuthRequest, res: Response) {
         blockNumber,
         anchoredAt,
         pdfBase64: final.pdf,
+        purchaseId: purchase?.id ?? null,
       },
     })
+
+    if (purchase) {
+      await prisma.purchase.update({
+        where: { id: purchase.id },
+        data: { usedAt: anchoredAt },
+      })
+    }
+
+    // Step 5 — send certificate email (non-blocking: failure doesn't abort the response)
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+    sendCertificateEmail({
+      to: { email: user.email, name: fullName },
+      sessionId: session.id,
+      txHash,
+      acousticHash: final.acoustic_hash,
+      blockNumber,
+      validUntil,
+      pdfBase64: final.pdf,
+      audioFiles: files,
+    })
+      .then(() =>
+        prisma.voiceSession.update({
+          where: { id: session.id },
+          data: { emailSentAt: new Date() },
+        })
+      )
+      .catch((err) => console.error('Failed to send certificate email:', err))
 
     return res.status(201).json({
       sessionId: session.id,

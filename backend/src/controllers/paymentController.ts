@@ -1,50 +1,43 @@
 import { Request, Response } from 'express'
 import { prisma } from '../config/database'
-import { stripe, createCheckoutSession, cancelSubscription } from '../services/stripeService'
+import { stripe, createCheckoutSession } from '../services/stripeService'
 import { AuthRequest } from '../middleware/auth'
 import { env } from '../config/env'
 
-export async function createSubscription(req: AuthRequest, res: Response) {
-  const subscription = await prisma.subscription.findFirst({ where: { userId: req.userId } })
-  if (!subscription) return res.status(404).json({ error: 'Subscription record not found' })
+export async function createPurchase(req: AuthRequest, res: Response) {
+  const { priceId } = req.body
+  const validPrices = [env.stripePriceAnnual, env.stripePriceLifetime].filter(Boolean)
 
-  if (subscription.status === 'ACTIVE' && subscription.stripeSubscriptionId) {
-    return res.status(400).json({ error: 'You already have an active subscription' })
+  if (!priceId || !validPrices.includes(priceId)) {
+    return res.status(400).json({ error: 'Invalid price ID' })
   }
 
+  const user = await prisma.user.findUnique({ where: { id: req.userId } })
+  if (!user) return res.status(404).json({ error: 'User not found' })
+  if (!user.stripeCustomerId) return res.status(400).json({ error: 'No Stripe customer on file' })
+
   const url = await createCheckoutSession(
-    subscription.stripeCustomerId,
-    env.stripePriceAnnual,
+    user.stripeCustomerId,
+    priceId,
     req.userId!,
-    `${env.frontendUrl}/dashboard?payment=success`,
-    `${env.frontendUrl}/dashboard?payment=canceled`,
+    `${env.frontendUrl}/session?payment=success`,
+    `${env.frontendUrl}/session?payment=canceled`,
   )
 
   return res.json({ url })
 }
 
-export async function getSubscriptionStatus(req: AuthRequest, res: Response) {
-  const subscription = await prisma.subscription.findFirst({
-    where: { userId: req.userId },
-    select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, stripeSubscriptionId: true },
-  })
-  if (!subscription) return res.status(404).json({ error: 'Not found' })
-  return res.json(subscription)
-}
-
-export async function cancelPlan(req: AuthRequest, res: Response) {
-  const subscription = await prisma.subscription.findFirst({ where: { userId: req.userId } })
-  if (!subscription?.stripeSubscriptionId) {
-    return res.status(400).json({ error: 'No active subscription' })
-  }
-
-  await cancelSubscription(subscription.stripeSubscriptionId)
-  await prisma.subscription.updateMany({
-    where: { userId: req.userId },
-    data: { cancelAtPeriodEnd: true },
+export async function getPurchaseStatus(req: AuthRequest, res: Response) {
+  const purchase = await prisma.purchase.findFirst({
+    where: { userId: req.userId, usedAt: null },
+    orderBy: { createdAt: 'desc' },
+    select: { productType: true, validUntil: true, createdAt: true },
   })
 
-  return res.json({ message: 'Subscription will be canceled at end of billing period' })
+  return res.json({
+    hasCredit: !!purchase,
+    purchase: purchase ?? null,
+  })
 }
 
 export async function stripeWebhook(req: Request, res: Response) {
@@ -57,76 +50,26 @@ export async function stripeWebhook(req: Request, res: Response) {
     return res.status(400).json({ error: 'Invalid webhook signature' })
   }
 
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as any
-      const userId = session.metadata?.userId
-      if (userId && session.subscription) {
-        const stripeSub = await stripe.subscriptions.retrieve(session.subscription)
-        await prisma.subscription.updateMany({
-          where: { userId },
-          data: {
-            stripeSubscriptionId: session.subscription,
-            status: 'ACTIVE',
-            currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
-            cancelAtPeriodEnd: false,
-          },
-        })
-      }
-      break
-    }
-    case 'invoice.payment_succeeded': {
-      const invoice = event.data.object as any
-      if (invoice.subscription) {
-        const stripeSub = await stripe.subscriptions.retrieve(invoice.subscription) as any
-        const userId = stripeSub.metadata?.userId
-        const newPeriodEnd = new Date(stripeSub.current_period_end * 1000)
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as any
+    const userId = session.metadata?.userId
+    const priceId = session.metadata?.priceId
 
-        if (userId) {
-          await prisma.subscription.updateMany({
-            where: { userId },
-            data: { stripeSubscriptionId: invoice.subscription, status: 'ACTIVE', currentPeriodEnd: newPeriodEnd },
-          })
-          // Extend all ANCHORED certifications (renewal = automatic prolongation)
-          await prisma.voiceSession.updateMany({
-            where: { userId, status: 'ANCHORED' },
-            data: { validUntil: newPeriodEnd },
-          })
-        } else {
-          // Renewal: stripeSubscriptionId is already set, find userId from our DB
-          const sub = await prisma.subscription.findFirst({
-            where: { stripeSubscriptionId: invoice.subscription },
-            select: { userId: true },
-          })
-          await prisma.subscription.updateMany({
-            where: { stripeSubscriptionId: invoice.subscription },
-            data: { status: 'ACTIVE', currentPeriodEnd: newPeriodEnd },
-          })
-          if (sub?.userId) {
-            await prisma.voiceSession.updateMany({
-              where: { userId: sub.userId, status: 'ANCHORED' },
-              data: { validUntil: newPeriodEnd },
-            })
-          }
-        }
-      }
-      break
-    }
-    case 'customer.subscription.deleted': {
-      const sub = event.data.object as any
-      await prisma.subscription.updateMany({
-        where: { stripeSubscriptionId: sub.id },
-        data: { status: 'CANCELED' },
+    if (userId && session.payment_status === 'paid') {
+      const isLifetime = priceId === env.stripePriceLifetime
+      const validUntil = isLifetime
+        ? null
+        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+
+      await prisma.purchase.create({
+        data: {
+          userId,
+          stripePaymentIntentId: session.payment_intent ?? null,
+          stripePriceId: priceId,
+          productType: isLifetime ? 'LIFETIME' : 'ANNUAL',
+          validUntil,
+        },
       })
-      break
-    }
-    case 'invoice.payment_failed': {
-      const invoice = event.data.object as any
-      await prisma.subscription.updateMany({
-        where: { stripeCustomerId: invoice.customer },
-        data: { status: 'PAST_DUE' },
-      })
-      break
     }
   }
 

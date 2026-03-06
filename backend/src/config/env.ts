@@ -27,8 +27,11 @@ export const env = {
   stripeSecretKey: required('STRIPE_SECRET_KEY'),
   stripeWebhookSecret: required('STRIPE_WEBHOOK_SECRET'),
   stripePriceAnnual: process.env.STRIPE_PRICE_ANNUAL || '',
+  stripePriceLifetime: process.env.STRIPE_PRICE_LIFETIME || '',
 
   processorUrl: process.env.PROCESSOR_URL || 'http://localhost:5000',
 
   brevoApiKey: process.env.BREVO_API_KEY || '',
+  brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || 'noreply@voxproof.io',
+  brevoSenderName: process.env.BREVO_SENDER_NAME || 'VoxProof',
 }
