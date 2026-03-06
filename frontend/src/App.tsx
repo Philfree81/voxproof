@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard'
 import KycPage from './pages/KycPage'
 import SessionPage from './pages/SessionPage'
 import AdminPage from './pages/AdminPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import LoginForm from './components/auth/LoginForm'
 import RegisterForm from './components/auth/RegisterForm'
 
@@ -20,6 +22,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/kyc" element={<PrivateRoute><KycPage /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/session/new" element={<PrivateRoute><SessionPage /></PrivateRoute>} />

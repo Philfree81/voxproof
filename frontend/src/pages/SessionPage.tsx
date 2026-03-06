@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'\nimport { useAuthStore } from '../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useRecorder } from '../hooks/useRecorder'
@@ -10,7 +10,7 @@ type Step = 'setup' | 'recording' | 'review' | 'processing' | 'done'
 const LANG_NAMES: Record<Language, string> = { fr: 'Français', en: 'English', es: 'Español' }
 
 export default function SessionPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate()\n  const { user } = useAuthStore()
   const { recording, audioBlob, audioUrl, duration, error, start, stop, reset } = useRecorder()
 
   const [step, setStep] = useState<Step>('setup')
@@ -144,6 +144,13 @@ export default function SessionPage() {
           <h1 className="text-2xl font-bold text-gray-900">Nouvelle session vocale</h1>
           <p className="text-gray-500 text-sm mt-1">Vous allez enregistrer 5 textes pour créer votre signature acoustique.</p>
         </div>
+
+        {user?.kycStatus !== 'APPROVED' && (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-orange-800">⚠ Identité non vérifiée</p>
+            <p className="text-xs text-orange-600 mt-1">Votre certificat portera la mention <strong>« Identité non vérifiée »</strong>. Vous pouvez tout de même enregistrer votre signature vocale.</p>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
           {/* Language */}

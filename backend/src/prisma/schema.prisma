@@ -38,6 +38,8 @@ model User {
   isAdmin                Boolean        @default(false)
   emailVerified          Boolean        @default(false)
   emailVerificationToken String?
+  passwordResetToken     String?
+  passwordResetExpiry    DateTime?
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
@@ -73,6 +75,7 @@ model VoiceSession {
   textSetIndex   Int
 
   status         SessionStatus @default(RECORDING)
+  kycVerified    Boolean       @default(false)
 
   acousticHash   String?       @unique
   txHash         String?       @unique

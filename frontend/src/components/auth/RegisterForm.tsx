@@ -7,6 +7,7 @@ export default function RegisterForm() {
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
   const { setToken, setUser } = useAuthStore()
   const navigate = useNavigate()
 
@@ -22,7 +23,7 @@ export default function RegisterForm() {
       const { data } = await api.post('/auth/register', form)
       setToken(data.token)
       setUser(data.user)
-      navigate('/kyc')
+      setShowSuccess(true)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed')
     } finally {
@@ -32,6 +33,26 @@ export default function RegisterForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      {/* Success popup */}
+      {showSuccess && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
+            <div className="text-5xl mb-4">📧</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Compte créé !</h2>
+            <p className="text-gray-600 text-sm mb-6">
+              Un email de confirmation vous a été envoyé à <strong>{form.email}</strong>.
+              Vérifiez votre boîte de réception pour confirmer votre inscription.
+            </p>
+            <button
+              onClick={() => navigate('/kyc')}
+              className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-medium hover:bg-brand-700 transition-colors"
+            >
+              Continuer vers la vérification d'identité
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <span className="text-4xl">🎙️</span>

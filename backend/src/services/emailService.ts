@@ -16,6 +16,69 @@ interface SendCertificateParams {
   audioFiles: Express.Multer.File[]
 }
 
+async function sendSimpleEmail(to: { email: string; name: string }, subject: string, htmlContent: string): Promise<void> {
+  console.log('[Brevo] apiKey:', env.brevoApiKey ? 'SET' : 'EMPTY', '| sender:', env.brevoSenderEmail)
+  if (!env.brevoApiKey) {
+    console.warn('BREVO_API_KEY not set — skipping email')
+    return
+  }
+  console.log(`[Brevo] Sending "${subject}" to ${to.email}`)
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'api-key': env.brevoApiKey },
+    body: JSON.stringify({
+      sender: { name: env.brevoSenderName, email: env.brevoSenderEmail },
+      to: [{ email: to.email, name: to.name }],
+      subject,
+      htmlContent,
+    }),
+  })
+  const body = await response.json().catch(() => ({}))
+  console.log(`[Brevo] Response ${response.status}:`, JSON.stringify(body))
+  if (!response.ok) {
+    throw new Error(`Brevo email error: ${(body as any).message || response.statusText}`)
+  }
+}
+
+export async function sendWelcomeEmail(to: { email: string; name: string }): Promise<void> {
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #1a1a2e; font-size: 24px;">🎙️ VoxProof</h1>
+  </div>
+  <h2 style="color: #1a1a2e;">Bienvenue sur VoxProof !</h2>
+  <p>Bonjour <strong>${to.name}</strong>,</p>
+  <p>Votre compte a bien été créé. Vous pouvez maintenant vous connecter et commencer votre certification vocale sur la blockchain Avalanche.</p>
+  <p>Prochaine étape : vérifiez votre identité (KYC) pour débloquer les enregistrements.</p>
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  <p style="color: #aaa; font-size: 12px; text-align: center;">VoxProof — Certification vocale sur Avalanche Blockchain</p>
+</body></html>`
+  await sendSimpleEmail(to, 'Bienvenue sur VoxProof', html)
+  console.log(`Welcome email sent to ${to.email}`)
+}
+
+export async function sendPasswordResetEmail(to: { email: string; name: string }, resetUrl: string): Promise<void> {
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #1a1a2e; font-size: 24px;">🎙️ VoxProof</h1>
+  </div>
+  <h2 style="color: #1a1a2e;">Réinitialisation de votre mot de passe</h2>
+  <p>Bonjour <strong>${to.name}</strong>,</p>
+  <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous :</p>
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${resetUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+      Réinitialiser mon mot de passe
+    </a>
+  </div>
+  <p style="color: #666; font-size: 13px;">Ce lien expire dans <strong>1 heure</strong>. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  <p style="color: #aaa; font-size: 12px; text-align: center;">VoxProof — Certification vocale sur Avalanche Blockchain</p>
+</body></html>`
+  await sendSimpleEmail(to, 'Réinitialisation de votre mot de passe VoxProof', html)
+  console.log(`Password reset email sent to ${to.email}`)
+}
+
 export async function sendCertificateEmail(params: SendCertificateParams): Promise<void> {
   if (!env.brevoApiKey) {
     console.warn('BREVO_API_KEY not set — skipping email')

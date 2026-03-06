@@ -18,7 +18,7 @@ export interface Purchase {
   id: string
   productType: ProductType
   usedAt?: string | null
-  validUntil?: string | null
+  kycVerified: boolean\n  validUntil?: string | null
   createdAt: string
 }
 

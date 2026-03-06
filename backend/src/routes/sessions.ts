@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import { createSession, getSessions, getSession, getSessionPdf, deleteSession } from '../controllers/sessionController'
-import { requireAuth, requireKyc } from '../middleware/auth'
+import { requireAuth } from '../middleware/auth'
 import { uploadAudio } from '../middleware/upload'
 
 const router = Router()
 
-router.use(requireAuth, requireKyc)
+router.use(requireAuth)
 
 router.get('/', getSessions)
 router.get('/:id/pdf', getSessionPdf)
