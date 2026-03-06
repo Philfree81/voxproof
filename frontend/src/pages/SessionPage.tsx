@@ -304,6 +304,16 @@ export default function SessionPage() {
                 <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                 <p className="text-sm text-indigo-700">En attente de confirmation du paiement…</p>
                 <p className="text-xs text-indigo-400">Complétez le paiement dans l'onglet qui vient de s'ouvrir</p>
+                <button
+                  onClick={async () => {
+                    const r = await api.get('/payments/status')
+                    if (r.data.hasCredit) { setHasCredit(true); setPurchasing(false) }
+                    else alert('Paiement non encore confirmé. Réessayez dans quelques secondes.')
+                  }}
+                  className="mt-2 text-xs text-indigo-600 underline hover:text-indigo-800"
+                >
+                  J'ai payé — vérifier maintenant
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
