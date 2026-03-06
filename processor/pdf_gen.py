@@ -42,6 +42,9 @@ LANG_LABELS = {
         'block': 'Bloc',
         'set': 'Ensemble de textes',
         'lang': 'Langue d\'enregistrement',
+        'kyc': 'Vérification d\'identité',
+        'kyc_yes': '✓ Identité vérifiée (Stripe Identity)',
+        'kyc_no': '⚠ Identité NON vérifiée — certificat sans contrôle d\'identité',
     },
     'en': {
         'title': 'VOCAL IDENTITY CERTIFICATE',
@@ -58,6 +61,9 @@ LANG_LABELS = {
         'block': 'Block',
         'set': 'Text set',
         'lang': 'Recording language',
+        'kyc': 'Identity verification',
+        'kyc_yes': '✓ Identity verified (Stripe Identity)',
+        'kyc_no': '⚠ Identity NOT verified — certificate without identity check',
     },
     'es': {
         'title': 'CERTIFICADO DE IDENTIDAD VOCAL',
@@ -74,6 +80,9 @@ LANG_LABELS = {
         'block': 'Bloque',
         'set': 'Conjunto de textos',
         'lang': 'Idioma de grabación',
+        'kyc': 'Verificación de identidad',
+        'kyc_yes': '✓ Identidad verificada (Stripe Identity)',
+        'kyc_no': '⚠ Identidad NO verificada — certificado sin control de identidad',
     },
 }
 
@@ -97,6 +106,7 @@ def generate_certificate(
     properties_b64: str,
     anchored_at: datetime,
     valid_until: datetime | None = None,
+    kyc_verified: bool = True,
 ) -> bytes:
     """
     Generate a PDF certificate and return it as bytes.
@@ -143,6 +153,10 @@ def generate_certificate(
     # ─── Identity block ──────────────────────────────────────────────────────
     info_style = ParagraphStyle('Info', fontSize=10, fontName='Helvetica', textColor=GRAY_600, spaceAfter=3)
     bold_style = ParagraphStyle('Bold', fontSize=11, fontName='Helvetica-Bold', textColor=GRAY_900, spaceAfter=3)
+    kyc_ok_style = ParagraphStyle('KycOk', fontSize=10, fontName='Helvetica-Bold', textColor=colors.HexColor('#15803d'), spaceAfter=3)
+    kyc_warn_style = ParagraphStyle('KycWarn', fontSize=10, fontName='Helvetica-Bold', textColor=colors.HexColor('#b45309'), spaceAfter=3)
+
+    kyc_value = Paragraph(L['kyc_yes'], kyc_ok_style) if kyc_verified else Paragraph(L['kyc_no'], kyc_warn_style)
 
     identity_data = [
         [Paragraph(f"<b>{L['holder']}</b>", bold_style),
@@ -156,6 +170,7 @@ def generate_certificate(
          Paragraph({'fr': 'Français', 'en': 'English', 'es': 'Español'}.get(lang, lang), info_style)],
         [Paragraph(L['set'], info_style),
          Paragraph(f"{text_set_index + 1} — {SET_LABELS[lang][text_set_index]}", info_style)],
+        [Paragraph(L['kyc'], info_style), kyc_value],
     ]
 
     id_table = Table(identity_data, colWidths=[55 * mm, 110 * mm])

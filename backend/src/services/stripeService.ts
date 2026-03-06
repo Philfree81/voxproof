@@ -13,11 +13,12 @@ export async function createCheckoutSession(
   priceId: string,
   userId: string,
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
+  mode: 'payment' | 'subscription' = 'payment',
 ): Promise<string> {
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    mode: 'payment',
+    mode,
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { userId, priceId },

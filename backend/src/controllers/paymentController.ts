@@ -16,12 +16,15 @@ export async function createPurchase(req: AuthRequest, res: Response) {
   if (!user) return res.status(404).json({ error: 'User not found' })
   if (!user.stripeCustomerId) return res.status(400).json({ error: 'No Stripe customer on file' })
 
+  const mode = priceId === env.stripePriceLifetime ? 'payment' : 'subscription'
+
   const url = await createCheckoutSession(
     user.stripeCustomerId,
     priceId,
     req.userId!,
     `${env.frontendUrl}/session?payment=success`,
     `${env.frontendUrl}/session?payment=canceled`,
+    mode,
   )
 
   return res.json({ url })

@@ -35,6 +35,7 @@ async def process_session(
     tx_hash: str = Form('pending'),
     block_number: int = Form(0),
     valid_until: str = Form(''),
+    kyc_verified: bool = Form(True),
 ):
     """
     Process 5 audio recordings:
@@ -88,6 +89,7 @@ async def process_session(
             properties_b64=properties_b64,
             anchored_at=datetime.utcnow(),
             valid_until=valid_until_dt,
+            kyc_verified=kyc_verified,
         )
         pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
     except Exception as e:

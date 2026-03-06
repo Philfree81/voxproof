@@ -18,7 +18,7 @@ export interface Purchase {
   id: string
   productType: ProductType
   usedAt?: string | null
-  kycVerified: boolean\n  validUntil?: string | null
+  validUntil?: string | null
   createdAt: string
 }
 
@@ -33,6 +33,7 @@ export interface VoiceSession {
   blockNumber?: number
   anchoredAt?: string
   validUntil?: string | null
+  kycVerified: boolean
   emailSentAt?: string
   createdAt: string
 }

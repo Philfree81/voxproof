@@ -57,6 +57,7 @@ export async function createSession(req: AuthRequest, res: Response) {
     // For now: extract hash first (processor call without tx info), then anchor
 
     // First pass — get the acoustic hash
+    const kycVerified = user.kycStatus === 'APPROVED'
     const preliminary = await processSession(
       files,
       { firstName: user.firstName, lastName: user.lastName, email: user.email },
@@ -65,6 +66,7 @@ export async function createSession(req: AuthRequest, res: Response) {
       'pending',
       0,
       validUntil,
+      kycVerified,
     )
 
     // Step 2 — anchor acoustic hash on blockchain
@@ -82,6 +84,7 @@ export async function createSession(req: AuthRequest, res: Response) {
       txHash,
       blockNumber,
       validUntil,
+      kycVerified,
     )
 
     const anchoredAt = new Date()

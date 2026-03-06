@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'\nimport { useAuthStore } from '../store/authStore'
+import { useState, useEffect } from 'react'
+import { useAuthStore } from '../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useRecorder } from '../hooks/useRecorder'
@@ -10,7 +11,8 @@ type Step = 'setup' | 'recording' | 'review' | 'processing' | 'done'
 const LANG_NAMES: Record<Language, string> = { fr: 'Français', en: 'English', es: 'Español' }
 
 export default function SessionPage() {
-  const navigate = useNavigate()\n  const { user } = useAuthStore()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
   const { recording, audioBlob, audioUrl, duration, error, start, stop, reset } = useRecorder()
 
   const [step, setStep] = useState<Step>('setup')

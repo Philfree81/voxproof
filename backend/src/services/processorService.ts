@@ -18,6 +18,7 @@ export async function processSession(
   txHash: string,
   blockNumber: number,
   validUntil?: Date,
+  kycVerified?: boolean,
 ): Promise<ProcessorResult> {
   const form = new FormData()
 
@@ -34,6 +35,7 @@ export async function processSession(
   form.append('tx_hash', txHash)
   form.append('block_number', String(blockNumber))
   if (validUntil) form.append('valid_until', validUntil.toISOString())
+  form.append('kyc_verified', kycVerified === false ? 'false' : 'true')
 
   const response = await fetch(`${env.processorUrl}/process`, {
     method: 'POST',

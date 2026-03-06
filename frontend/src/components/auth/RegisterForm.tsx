@@ -49,6 +49,12 @@ export default function RegisterForm() {
             >
               Continuer vers la vérification d'identité
             </button>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full text-gray-500 text-sm mt-2 hover:text-gray-700 underline"
+            >
+              Passer cette étape — continuer sans vérifier mon identité
+            </button>
           </div>
         </div>
       )}

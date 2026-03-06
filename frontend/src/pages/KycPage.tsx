@@ -87,8 +87,8 @@ export default function KycPage() {
 
           <div className="mt-4">
             <button onClick={() => navigate('/dashboard')}
-              className="text-sm text-gray-400 hover:text-gray-600 hover:underline">
-              Passer pour l'instant — je vérifierai mon identité plus tard
+              className="w-full border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+              Passer pour l'instant — continuer sans vérifier mon identité
             </button>
           </div>
 
