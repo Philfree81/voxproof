@@ -58,7 +58,19 @@ export async function stripeWebhook(req: Request, res: Response) {
     const userId = session.metadata?.userId
     const priceId = session.metadata?.priceId
 
-    if (userId && session.payment_status === 'paid') {
+    console.log('[Webhook] checkout.session.completed', {
+      userId,
+      priceId,
+      payment_status: session.payment_status,
+      mode: session.mode,
+      sessionId: session.id,
+    })
+
+    // payment_status === 'paid' pour one-time ; pour subscription, accepter aussi 'unpaid'
+    // car le paiement est confirmé via invoice séparément
+    const isPaid = session.payment_status === 'paid' || session.mode === 'subscription'
+
+    if (userId && isPaid) {
       const isLifetime = priceId === env.stripePriceLifetime
       const validUntil = isLifetime
         ? null
@@ -73,6 +85,9 @@ export async function stripeWebhook(req: Request, res: Response) {
           validUntil,
         },
       })
+      console.log('[Webhook] Purchase créé pour userId', userId)
+    } else {
+      console.warn('[Webhook] Ignoré — userId:', userId, 'isPaid:', isPaid)
     }
   }
 
