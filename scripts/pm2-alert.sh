@@ -1,6 +1,12 @@
 #!/bin/bash
 
-BREVO_API_KEY="${BREVO_API_KEY:-your_brevo_api_key_here}"
+# Load credentials from backend .env
+if [ -f /home/phil/voxproof/backend/.env ]; then
+  set -a
+  source /home/phil/voxproof/backend/.env
+  set +a
+fi
+
 FROM_EMAIL="noreply@voxproof.com"
 FROM_NAME="VoxProof Monitor"
 TO_EMAIL="ptriem@gmail.com"
@@ -44,8 +50,8 @@ curl -s -X POST "https://api.brevo.com/v3/smtp/email" \
   }" > /dev/null
 
 # WhatsApp via Twilio
-TWILIO_SID="${TWILIO_SID:-your_twilio_sid_here}"
-TWILIO_TOKEN="${TWILIO_TOKEN:-your_twilio_token_here}"
+TWILIO_SID="$TWILIO_ACCOUNT_SID"
+TWILIO_TOKEN="$TWILIO_AUTH_TOKEN"
 TWILIO_FROM="whatsapp:+14155238886"
 TWILIO_TO="whatsapp:+33678808527"
 WA_MSG="[VoxProof] Alerte crash : $(IFS=,; echo "${FAILED[*]}") — $(date '+%d/%m %H:%M')"
