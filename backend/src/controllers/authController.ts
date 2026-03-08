@@ -7,6 +7,8 @@ import { prisma } from '../config/database'
 import { env } from '../config/env'
 import { createCustomer } from '../services/stripeService'
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService'
+import { notifyNewUser, notifyLogin } from '../services/notifyService'
+import { logActivity } from '../services/activityService'
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -34,6 +36,7 @@ export async function register(req: Request, res: Response) {
 
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
+    logActivity('REGISTER_FAILED', { metadata: { email, reason: 'email_already_registered' }, req })
     return res.status(409).json({ error: 'Email already registered' })
   }
 
@@ -59,6 +62,9 @@ export async function register(req: Request, res: Response) {
     name: [firstName, lastName].filter(Boolean).join(' ') || user.email,
   }).catch((err) => console.error('Welcome email error:', err))
 
+  notifyNewUser(user.email, firstName, lastName).catch(() => {})
+  logActivity('REGISTER', { userId: user.id, metadata: { email: user.email }, req })
+
   return res.status(201).json({ token, user })
 }
 
@@ -70,12 +76,22 @@ export async function login(req: Request, res: Response) {
 
   const { email, password } = parsed.data
   const user = await prisma.user.findUnique({ where: { email } })
-  if (!user) return res.status(401).json({ error: 'Invalid credentials' })
+  if (!user) {
+    logActivity('LOGIN_FAILED', { metadata: { email, reason: 'user_not_found' }, req })
+    return res.status(401).json({ error: 'Invalid credentials' })
+  }
 
   const valid = await bcrypt.compare(password, user.passwordHash)
-  if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
+  if (!valid) {
+    logActivity('LOGIN_FAILED', { userId: user.id, metadata: { email, reason: 'wrong_password' }, req })
+    return res.status(401).json({ error: 'Invalid credentials' })
+  }
 
   const token = signToken(user.id)
+
+  notifyLogin(user.email, user.firstName, user.lastName).catch(() => {})
+  logActivity('LOGIN', { userId: user.id, metadata: { email: user.email }, req })
+
   return res.json({
     token,
     user: {

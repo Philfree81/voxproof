@@ -1,3 +1,12 @@
+export interface SpectrogramMetrics {
+  centroide_hz: number
+  rolloff_hz: number
+  energie_grave_pct: number
+  energie_medium_pct: number
+  energie_aigu_pct: number
+  variabilite: number
+}
+
 export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type SessionStatus = 'RECORDING' | 'PROCESSING' | 'ANCHORED' | 'FAILED'
 export type ProductType = 'ANNUAL' | 'LIFETIME'
@@ -29,12 +38,19 @@ export interface VoiceSession {
   textSetIndex: number
   status: SessionStatus
   acousticHash?: string
+  voiceHash?: string
   txHash?: string
   blockNumber?: number
   anchoredAt?: string
   validUntil?: string | null
   kycVerified: boolean
   emailSentAt?: string
+  audioCids?: string[]
+  audioUnpinAt?: string | null
+  radarChartBase64?: string
+  propertiesChartBase64?: string
+  spectrogramBase64?: string
+  spectrogramMetrics?: SpectrogramMetrics | null
   createdAt: string
 }
 

@@ -19,6 +19,10 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
+          <a href="https://blog.voxproof.com" target="_blank" rel="noopener noreferrer"
+            className="text-sm text-gray-600 hover:text-brand-600 font-medium">
+            Blog
+          </a>
           {user ? (
             <>
               <Link to="/dashboard" className="text-sm text-gray-600 hover:text-brand-600 font-medium">

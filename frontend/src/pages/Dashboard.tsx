@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useAuthStore } from '../store/authStore'
-import { VoiceSession } from '../types'
+import { VoiceSession, SpectrogramMetrics } from '../types'
 import api from '../services/api'
+import { getSet, SET_LABELS } from '../data/readingTexts'
+import type { Language } from '../data/readingTexts'
 
 const LANG_FLAG: Record<string, string> = { fr: '🇫🇷', en: '🇬🇧', es: '🇪🇸' }
 
@@ -14,9 +16,36 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   RECORDING:  { label: 'Incomplète', cls: 'bg-gray-100 text-gray-600' },
 }
 
-function shortHash(h?: string) {
-  if (!h) return '—'
-  return h.slice(0, 8) + '…' + h.slice(-6)
+
+function SpectrogramMetricsPanel({ m }: { m: SpectrogramMetrics }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+      <div className="bg-slate-800 rounded-lg px-3 py-2 text-center">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Centroïde</p>
+        <p className="text-sm font-mono text-white font-semibold">{Math.round(m.centroide_hz)} Hz</p>
+      </div>
+      <div className="bg-slate-800 rounded-lg px-3 py-2 text-center">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Rolloff 85%</p>
+        <p className="text-sm font-mono text-white font-semibold">{Math.round(m.rolloff_hz)} Hz</p>
+      </div>
+      <div className="bg-slate-800 rounded-lg px-3 py-2 text-center">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Variabilité</p>
+        <p className="text-sm font-mono text-white font-semibold">{(m.variabilite * 100).toFixed(0)} %</p>
+      </div>
+      <div className="bg-slate-700 rounded-lg px-3 py-2 text-center">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Graves &lt;500Hz</p>
+        <p className="text-sm font-mono text-white font-semibold">{m.energie_grave_pct.toFixed(1)} %</p>
+      </div>
+      <div className="bg-slate-700 rounded-lg px-3 py-2 text-center">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Médium 500-3kHz</p>
+        <p className="text-sm font-mono text-white font-semibold">{m.energie_medium_pct.toFixed(1)} %</p>
+      </div>
+      <div className="bg-slate-700 rounded-lg px-3 py-2 text-center">
+        <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Aigus &gt;3kHz</p>
+        <p className="text-sm font-mono text-white font-semibold">{m.energie_aigu_pct.toFixed(1)} %</p>
+      </div>
+    </div>
+  )
 }
 
 function formatDate(iso?: string | null) {
@@ -70,6 +99,30 @@ export default function Dashboard() {
     } finally {
       setDownloading(null)
     }
+  }
+
+  function downloadTexts(s: VoiceSession) {
+    const lang = s.language as Language
+    const texts = getSet(s.textSetIndex, lang)
+    const setLabel = SET_LABELS[lang]?.[s.textSetIndex] ?? `Set ${s.textSetIndex}`
+    const lines = [
+      `VoxProof — Textes de certification vocale`,
+      `Session : ${s.id}`,
+      `Ensemble : ${setLabel}`,
+      `Langue : ${lang.toUpperCase()}`,
+      `Date : ${formatDate(s.createdAt)}`,
+      ``,
+      ...texts.map((t, i) => `Texte ${i + 1} :\n${t}`).join('\n\n').split('\n'),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `voxproof-textes-${s.id.slice(0, 8)}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   async function deleteSession(sessionId: string) {
@@ -135,63 +188,205 @@ export default function Dashboard() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-6">
               {sessions.map(s => {
                 const badge = STATUS_BADGE[s.status] ?? STATUS_BADGE.RECORDING
                 const canDelete = s.status === 'FAILED' || s.status === 'RECORDING'
+                const isAnchored = s.status === 'ANCHORED'
+
+                const headerBg = isAnchored
+                  ? 'bg-slate-800'
+                  : s.status === 'PROCESSING' ? 'bg-amber-50 border-b border-amber-100'
+                  : s.status === 'FAILED' ? 'bg-red-50 border-b border-red-100'
+                  : 'bg-gray-50 border-b border-gray-100'
+
+                const kycBadgeCls = isAnchored
+                  ? (s.kycVerified ? 'bg-green-500/20 text-green-100' : 'bg-orange-400/20 text-orange-100')
+                  : (s.kycVerified ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700')
+
+                const subtitle = isAnchored
+                  ? `Certifiée le ${formatDate(s.anchoredAt)} · Session ${s.id.slice(0, 8)}`
+                  : `Session ${s.id.slice(0, 8)} · Créée le ${formatDate(s.createdAt)}`
 
                 return (
-                  <div key={s.id} className="bg-white rounded-xl border border-gray-200 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-base">{LANG_FLAG[s.language] ?? '🌐'}</span>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.cls}`}>
-                            {badge.label}
-                          </span>
-                          {!s.kycVerified && (
-                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                              ⚠ Identité non vérifiée
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-400">{formatDate(s.createdAt)}</span>
-                        </div>
-                        {s.acousticHash && (
-                          <p className="text-xs font-mono text-gray-500 truncate">
-                            Hash : {shortHash(s.acousticHash)}
-                          </p>
-                        )}
-                        {s.txHash && (
-                          <p className="text-xs font-mono text-gray-400 truncate">
-                            TX : {shortHash(s.txHash)} · Bloc #{s.blockNumber}
-                          </p>
-                        )}
-                        {s.status === 'ANCHORED' && s.validUntil && (
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            Valide jusqu'au <span className="font-medium text-gray-600">{formatDate(s.validUntil)}</span>
-                          </p>
-                        )}
-                      </div>
+                  <div key={s.id} className={`rounded-2xl border overflow-hidden ${isAnchored ? 'border-indigo-200 shadow-sm' : 'border-gray-200'}`}>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {s.status === 'ANCHORED' && (
-                          <button
-                            onClick={() => downloadPdf(s.id)}
-                            disabled={downloading === s.id}
-                            className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 font-medium disabled:opacity-60">
-                            {downloading === s.id ? '…' : '↓ Certificat'}
+                    {/* ── Header ── */}
+                    <div className={`px-6 py-4 flex items-center justify-between flex-wrap gap-3 ${headerBg}`}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{LANG_FLAG[s.language] ?? '🌐'}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isAnchored ? 'bg-white/20 text-white border border-white/30' : badge.cls}`}>
+                              {badge.label}
+                            </span>
+                            {s.kycVerified
+                              ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${kycBadgeCls}`}>✓ Identité vérifiée</span>
+                              : <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${kycBadgeCls}`}>⚠ Non vérifiée</span>
+                            }
+                          </div>
+                          <p className={`text-xs mt-0.5 ${isAnchored ? 'text-slate-400' : 'text-gray-400'}`}>
+                            {subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {isAnchored && (
+                          <button onClick={() => downloadPdf(s.id)} disabled={downloading === s.id}
+                            className="text-xs bg-white text-indigo-700 px-4 py-2 rounded-lg font-semibold hover:bg-indigo-50 disabled:opacity-60">
+                            {downloading === s.id ? '…' : '↓ Certificat PDF'}
                           </button>
                         )}
                         {canDelete && (
-                          <button
-                            onClick={() => deleteSession(s.id)}
-                            disabled={deleting === s.id}
-                            className="text-xs border border-red-200 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50 font-medium disabled:opacity-60">
+                          <button onClick={() => deleteSession(s.id)} disabled={deleting === s.id}
+                            className="text-xs border border-red-200 text-red-500 px-3 py-2 rounded-lg hover:bg-red-50 font-medium">
                             {deleting === s.id ? '…' : 'Supprimer'}
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {/* ── Corps session non-ancrée ── */}
+                    {!isAnchored && (
+                      <div className="bg-white px-6 py-4 flex items-center justify-between">
+                        {s.status === 'PROCESSING' && (
+                          <div className="flex items-center gap-3 text-amber-700">
+                            <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                            <p className="text-xs">Analyse et ancrage en cours, cela peut prendre quelques minutes…</p>
+                          </div>
+                        )}
+                        {s.status === 'FAILED' && (
+                          <p className="text-xs text-red-500">L'ancrage a échoué. Vous pouvez supprimer cette session et en créer une nouvelle.</p>
+                        )}
+                        {s.status === 'RECORDING' && (
+                          <>
+                            <p className="text-xs text-gray-400">Session incomplète — l'enregistrement n'a pas été finalisé.</p>
+                            <Link to={`/session/${s.id}`}
+                              className="shrink-0 ml-4 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 font-medium">
+                              Continuer →
+                            </Link>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── Corps session ancrée ── */}
+                    {isAnchored && (
+                      <div className="bg-gray-50 p-6 space-y-5">
+
+                        {/* ── Empreintes ── */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Empreintes cryptographiques</p>
+                          <div className="bg-slate-800 rounded-xl px-4 py-3">
+                            <p className="text-xs text-slate-400 font-semibold uppercase mb-1">SHA-256 session</p>
+                            <p className="font-mono text-xs text-white break-all">{s.acousticHash}</p>
+                          </div>
+                          {s.voiceHash && (
+                            <div className="bg-slate-700 rounded-xl px-4 py-3">
+                              <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Empreinte vocale biométrique</p>
+                              <p className="font-mono text-xs text-white break-all">{s.voiceHash}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── Blockchain + Radar ── */}
+                        {(s.txHash || s.radarChartBase64) && (
+                          <div className="grid grid-cols-2 gap-4 items-stretch">
+
+                            {/* Colonne gauche : blockchain */}
+                            {s.txHash && (
+                              <div className="flex flex-col">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Ancrage blockchain</p>
+                                <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 flex-1">
+                                  <div className="px-4 py-3 flex items-center justify-center">
+                                    <p className="text-sm font-bold text-gray-600">Infos blockchain</p>
+                                  </div>
+                                  <div className="px-4 py-3 flex flex-col justify-center">
+                                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Réseau</p>
+                                    <p className="text-sm text-gray-800 font-medium mt-0.5">Avalanche C-Chain</p>
+                                  </div>
+                                  <div className="px-4 py-3 flex flex-col justify-center">
+                                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Bloc</p>
+                                    <p className="text-sm font-mono text-gray-800 font-medium mt-0.5">#{s.blockNumber?.toLocaleString()}</p>
+                                  </div>
+                                  <div className="px-4 py-3 flex flex-col justify-center">
+                                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Transaction</p>
+                                    <a href={`https://snowtrace.io/tx/${s.txHash}`} target="_blank" rel="noopener noreferrer"
+                                      className="text-sm font-mono text-indigo-600 hover:underline mt-0.5 block break-all">
+                                      {s.txHash}
+                                    </a>
+                                  </div>
+                                  <div className="px-4 py-3 flex flex-col justify-center">
+                                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Prochain enregistrement conseillé</p>
+                                    <p className="text-sm text-gray-800 font-medium mt-0.5">
+                                      {s.validUntil ? formatDate(s.validUntil) : '—'}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Colonne droite : radar */}
+                            {s.radarChartBase64 && (
+                              <div className="flex flex-col">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Profil acoustique</p>
+                                <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 flex-1 flex flex-col">
+                                  <div className="px-4 py-3 flex items-center justify-center">
+                                    <p className="text-sm font-bold text-gray-600">Profil acoustique</p>
+                                  </div>
+                                  <div className="p-2 flex-1 flex items-center justify-center">
+                                    <img src={`data:image/png;base64,${s.radarChartBase64}`} alt="Radar" className="w-3/4" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ── Propriétés + Spectrogramme ── */}
+                        {(s.propertiesChartBase64 || s.spectrogramBase64) && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Analyse acoustique</p>
+                            {s.propertiesChartBase64 && (
+                              <div className="bg-white rounded-xl border border-gray-200 p-2 flex flex-col items-center">
+                                <p className="text-xs text-gray-400 text-center mb-1 font-medium">Propriétés acoustiques</p>
+                                <img src={`data:image/png;base64,${s.propertiesChartBase64}`} alt="Propriétés" className="w-3/4" />
+                              </div>
+                            )}
+                            {s.spectrogramBase64 && (
+                              <div className="rounded-xl overflow-hidden border border-gray-200 bg-[#0f172a]">
+                                <div className="flex justify-center">
+                                  <img src={`data:image/png;base64,${s.spectrogramBase64}`} alt="Spectrogramme" className="w-3/4" />
+                                </div>
+                                {s.spectrogramMetrics && (
+                                  <SpectrogramMetricsPanel m={s.spectrogramMetrics} />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ── Téléchargements ── */}
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Téléchargements</p>
+                          <div className="flex gap-2 flex-wrap">
+                            <button onClick={() => downloadTexts(s)}
+                              className="text-xs border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 font-medium">
+                              ↓ Textes lus
+                            </button>
+                            {s.audioCids && s.audioCids.length > 0 && s.audioCids.map((cid, i) => (
+                              <a key={cid} href={`https://gateway.pinata.cloud/ipfs/${cid}`}
+                                download={`voxproof-${s.id.slice(0, 8)}-audio${i + 1}.webm`}
+                                title={s.audioUnpinAt ? `Disponible jusqu'au ${formatDate(s.audioUnpinAt)}` : ''}
+                                className="text-xs border border-indigo-200 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 font-medium">
+                                ↓ Audio {i + 1}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    )}
                   </div>
                 )
               })}

@@ -3,6 +3,8 @@ import { prisma } from '../config/database'
 import { stripe, createCheckoutSession } from '../services/stripeService'
 import { AuthRequest } from '../middleware/auth'
 import { env } from '../config/env'
+import { notifyNewPurchase } from '../services/notifyService'
+import { logActivity } from '../services/activityService'
 
 export async function createPurchase(req: AuthRequest, res: Response) {
   const { priceId } = req.body
@@ -86,8 +88,20 @@ export async function stripeWebhook(req: Request, res: Response) {
         },
       })
       console.log('[Webhook] Purchase créé pour userId', userId)
+
+      // WhatsApp notification (non-blocking)
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+      if (user) {
+        const label = isLifetime ? 'LIFETIME' : 'ANNUAL'
+        notifyNewPurchase(user.email, label).catch(() => {})
+        logActivity('PURCHASE', { userId, metadata: { email: user.email, productType: label, priceId } })
+      }
     } else {
       console.warn('[Webhook] Ignoré — userId:', userId, 'isPaid:', isPaid)
+      logActivity('PAYMENT_FAILED', {
+        userId: userId ?? undefined,
+        metadata: { priceId, payment_status: session.payment_status, mode: session.mode, sessionId: session.id },
+      })
     }
   }
 

@@ -1,6 +1,7 @@
 """
-Acoustic feature extraction using OpenSMILE.
-Extracts both eGeMAPS (88 features, for charts) and ComParE (6373 features, for hash).
+Acoustic feature extraction using OpenSMILE + Resemblyzer.
+Extracts both eGeMAPS (88 features, for charts) and ComParE (6373 features, for session hash).
+Resemblyzer d-vector (256 dim) is used for the stable voice identity hash.
 Audio decoding via PyAV (bundled ffmpeg codecs — no system ffmpeg required).
 """
 
@@ -9,6 +10,17 @@ import io
 import numpy as np
 import av
 import opensmile
+from resemblyzer import VoiceEncoder, preprocess_wav
+
+_encoder: VoiceEncoder | None = None
+
+
+def _get_encoder() -> VoiceEncoder:
+    """Lazy singleton — loads the GE2E model once."""
+    global _encoder
+    if _encoder is None:
+        _encoder = VoiceEncoder()
+    return _encoder
 
 
 def _decode_audio(audio_bytes: bytes) -> tuple[np.ndarray, int]:
@@ -77,3 +89,37 @@ def aggregate_egemaps(egemaps_list: list[np.ndarray]) -> np.ndarray:
     """Average eGeMAPS features across the 5 recordings."""
     stacked = np.stack(egemaps_list, axis=0)
     return np.nan_to_num(np.mean(stacked, axis=0), nan=0.0)
+
+
+def compute_voice_hash(audio_bytes_list: list[bytes]) -> str:
+    """
+    Compute a stable voice identity hash using Resemblyzer GE2E d-vectors.
+
+    Algorithm:
+      1. Decode each audio to mono float32 via PyAV
+      2. preprocess_wav: resample to 16kHz, normalize amplitude
+      3. embed_utterance: GE2E neural net → d-vector (256 dim)
+      4. Average the 5 embeddings → stable voice centroid
+      5. Sign quantization: bit_i = 1 if avg[i] > 0 else 0  → 256 bits
+      6. SHA-256 of those 256 bits → 64-char hex hash
+
+    Same person across sessions → ~94% bit stability → same hash.
+    Different persons → different hash (cosine distance >> sign threshold).
+    """
+    encoder = _get_encoder()
+    embeddings = []
+
+    for audio_bytes in audio_bytes_list:
+        signal, sr = _decode_audio(audio_bytes)
+        mono = signal.mean(axis=0)  # (samples,) float32 mono
+        wav = preprocess_wav(mono, source_sr=sr)
+        emb = encoder.embed_utterance(wav)  # (256,) float32
+        embeddings.append(emb)
+
+    avg_emb = np.mean(embeddings, axis=0)  # (256,) — stable centroid
+
+    # Keep only the 128 dimensions with highest absolute value (far from 0 = stable sign)
+    # Dimensions near 0 flip easily between sessions → excluded
+    indices = np.sort(np.argsort(np.abs(avg_emb))[-128:])
+    stable_bits = (avg_emb[indices] > 0).astype(np.uint8)  # 128 stable bits
+    return hashlib.sha256(stable_bits.tobytes()).hexdigest()

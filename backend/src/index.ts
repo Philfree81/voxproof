@@ -9,6 +9,8 @@ import kycRoutes from './routes/kyc'
 import paymentRoutes from './routes/payments'
 import sessionRoutes from './routes/sessions'
 import adminRoutes from './routes/admin'
+import { startUnpinScheduler } from './services/unpinScheduler'
+import { seedBuiltinTextSets } from './services/seedBuiltinSets'
 
 const app = express()
 
@@ -49,6 +51,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 app.listen(env.port, () => {
   console.log(`VoxProof API running on port ${env.port} [${env.nodeEnv}]`)
+  startUnpinScheduler()
+  seedBuiltinTextSets().catch(err => console.error('[Seed] Built-in sets error:', err))
 })
 
 export default app

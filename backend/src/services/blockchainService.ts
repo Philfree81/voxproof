@@ -2,10 +2,11 @@ import { ethers } from 'ethers'
 import { env } from '../config/env'
 
 const ABI = [
-  'function anchorProof(bytes32 audioHash, string calldata ipfsCid, string calldata title) external returns (uint256)',
+  'function anchorProof(bytes32 audioHash, bytes32 voiceHash, string calldata ipfsCid, string calldata title) external returns (uint256)',
+  'function getProofsByVoiceHash(bytes32 voiceHash) external view returns (uint256[])',
   'function verifyHash(bytes32 audioHash) external view returns (bool exists, uint256 proofId, bool revoked)',
   'function totalProofs() external view returns (uint256)',
-  'event ProofAnchored(uint256 indexed proofId, address indexed owner, bytes32 indexed audioHash, string ipfsCid, string title, uint256 timestamp)',
+  'event ProofAnchored(uint256 indexed proofId, address indexed owner, bytes32 indexed audioHash, bytes32 voiceHash, string ipfsCid, string title, uint256 timestamp)',
 ]
 
 function getProvider() {
@@ -23,6 +24,7 @@ function getContract(signerOrProvider?: ethers.Signer | ethers.Provider) {
  */
 export async function anchorHashOnChain(
   acousticHashHex: string,
+  voiceHashHex: string,
   sessionId: string,
 ): Promise<{ txHash: string; blockNumber: number }> {
   const provider = getProvider()
@@ -33,7 +35,11 @@ export async function anchorHashOnChain(
     Buffer.from(acousticHashHex.replace('0x', ''), 'hex')
   ) as `0x${string}`
 
-  const tx = await contract.anchorProof(hashBytes, sessionId, 'VoxProof Vocal Signature')
+  const voiceHashBytes = ethers.hexlify(
+    Buffer.from(voiceHashHex.replace('0x', ''), 'hex')
+  ) as `0x${string}`
+
+  const tx = await contract.anchorProof(hashBytes, voiceHashBytes, sessionId, 'VoxProof Vocal Signature')
   const receipt = await tx.wait()
 
   return {

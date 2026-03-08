@@ -3,11 +3,23 @@
  */
 import { env } from '../config/env'
 
+export interface SpectrogramMetrics {
+  centroide_hz: number       // spectral centroid (Hz) — brightness of the voice
+  rolloff_hz: number         // 85% energy rolloff frequency (Hz)
+  energie_grave_pct: number  // % energy below 500 Hz
+  energie_medium_pct: number // % energy 500–3000 Hz
+  energie_aigu_pct: number   // % energy above 3000 Hz
+  variabilite: number        // normalized RMS variability (0–1)
+}
+
 export interface ProcessorResult {
   acoustic_hash: string
-  radar_chart: string      // base64 PNG
-  properties_chart: string // base64 PNG
-  pdf: string              // base64 PDF
+  voice_hash: string            // stable biometric voice identity hash
+  radar_chart: string           // base64 PNG
+  properties_chart: string      // base64 PNG
+  spectrogram: string           // base64 PNG
+  spectrogram_metrics: SpectrogramMetrics
+  pdf: string                   // base64 PDF
 }
 
 export async function processSession(
@@ -19,6 +31,7 @@ export async function processSession(
   blockNumber: number,
   validUntil?: Date,
   kycVerified?: boolean,
+  textSetName?: string,
 ): Promise<ProcessorResult> {
   const form = new FormData()
 
@@ -32,6 +45,7 @@ export async function processSession(
   form.append('email', user.email)
   form.append('language', language)
   form.append('text_set_index', String(textSetIndex))
+  if (textSetName) form.append('text_set_name', textSetName)
   form.append('tx_hash', txHash)
   form.append('block_number', String(blockNumber))
   if (validUntil) form.append('valid_until', validUntil.toISOString())

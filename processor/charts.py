@@ -13,6 +13,8 @@ matplotlib.use('Agg')  # non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
+import librosa
+import librosa.display
 
 
 # ─── eGeMAPS feature groups ─────────────────────────────────────────────────
@@ -98,6 +100,93 @@ def generate_radar_chart(egemaps: np.ndarray) -> str:
     result = _to_base64(fig)
     plt.close(fig)
     return result
+
+
+def generate_spectrogram(audio_bytes_list: list[bytes]) -> str:
+    """
+    Generate a mel spectrogram from the 5 audio recordings (concatenated).
+    Returns base64-encoded PNG.
+    Uses librosa for mel filterbank computation.
+    """
+    from audio import _decode_audio  # import here to avoid circular dependency at module load
+
+    signals = []
+    target_sr = 16000
+    for audio_bytes in audio_bytes_list:
+        signal, sr = _decode_audio(audio_bytes)
+        mono = signal.mean(axis=0).astype(np.float32)
+        # Resample to 16kHz for consistency
+        if sr != target_sr:
+            mono = librosa.resample(mono, orig_sr=sr, target_sr=target_sr)
+        signals.append(mono)
+
+    # Concatenate all 5 recordings with a short silence gap
+    silence = np.zeros(int(target_sr * 0.3), dtype=np.float32)
+    combined = np.concatenate([s for pair in zip(signals, [silence] * 5) for s in pair][:-1])
+
+    # Mel spectrogram
+    S = librosa.feature.melspectrogram(
+        y=combined, sr=target_sr,
+        n_mels=128, fmax=8000,
+        n_fft=1024, hop_length=256,
+    )
+    S_db = librosa.power_to_db(S, ref=np.max)
+
+    # ── Spectral metrics ────────────────────────────────────────────────────
+    mel_freqs = librosa.mel_frequencies(n_mels=128, fmax=8000)
+    low_mask  = mel_freqs < 500
+    mid_mask  = (mel_freqs >= 500) & (mel_freqs < 3000)
+    high_mask = mel_freqs >= 3000
+
+    total_energy = float(S.sum())
+    if total_energy > 0:
+        energie_grave_pct  = float(S[low_mask].sum()  / total_energy * 100)
+        energie_medium_pct = float(S[mid_mask].sum()  / total_energy * 100)
+        energie_aigu_pct   = float(S[high_mask].sum() / total_energy * 100)
+    else:
+        energie_grave_pct = energie_medium_pct = energie_aigu_pct = 0.0
+
+    centroide_hz = float(np.mean(librosa.feature.spectral_centroid(y=combined, sr=target_sr)))
+    rolloff_hz   = float(np.mean(librosa.feature.spectral_rolloff(y=combined, sr=target_sr, roll_percent=0.85)))
+    rms = librosa.feature.rms(y=combined).flatten()
+    variabilite  = float(min(rms.std() / (rms.mean() + 1e-8) / 2.0, 1.0))
+
+    metrics = {
+        'centroide_hz':      round(centroide_hz,      1),
+        'rolloff_hz':        round(rolloff_hz,        1),
+        'energie_grave_pct': round(energie_grave_pct, 1),
+        'energie_medium_pct':round(energie_medium_pct,1),
+        'energie_aigu_pct':  round(energie_aigu_pct,  1),
+        'variabilite':       round(variabilite,        3),
+    }
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(10, 4), facecolor='#0f172a')
+    ax.set_facecolor('#0f172a')
+
+    img = librosa.display.specshow(
+        S_db, sr=target_sr, hop_length=256,
+        x_axis='time', y_axis='mel', fmax=8000,
+        cmap='magma', ax=ax,
+    )
+
+    cbar = fig.colorbar(img, ax=ax, format='%+2.0f dB', pad=0.01)
+    cbar.ax.yaxis.set_tick_params(color='#94a3b8', labelsize=8)
+    plt.setp(cbar.ax.yaxis.get_ticklabels(), color='#94a3b8')
+    cbar.outline.set_edgecolor('#334155')
+
+    ax.set_title('Empreinte spectrale vocale', fontsize=13, fontweight='bold',
+                 color='#f1f5f9', pad=10)
+    ax.set_xlabel('Temps (s)', fontsize=9, color='#94a3b8')
+    ax.set_ylabel('Fréquence (Hz)', fontsize=9, color='#94a3b8')
+    ax.tick_params(colors='#94a3b8', labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_edgecolor('#334155')
+
+    plt.tight_layout()
+    result = _to_base64(fig)
+    plt.close(fig)
+    return result, metrics
 
 
 def generate_properties_chart(egemaps: np.ndarray) -> str:

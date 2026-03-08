@@ -19,7 +19,8 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
     struct Proof {
         uint256 id;
         address owner;
-        bytes32 audioHash;    // SHA-256 of the audio file
+        bytes32 audioHash;    // SHA-256 of ComParE features — unique per session
+        bytes32 voiceHash;    // SHA-256 of Resemblyzer d-vector — stable biometric identity
         string  ipfsCid;      // IPFS Content ID (CID v1)
         string  title;        // Optional title given by the user
         uint256 timestamp;    // Block timestamp at anchoring time
@@ -39,12 +40,16 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
     // audioHash => proofId (to prevent duplicate anchoring)
     mapping(bytes32 => uint256) private _hashToProofId;
 
+    // voiceHash => list of proofIds (one voice identity can have multiple sessions)
+    mapping(bytes32 => uint256[]) private _voiceHashToProofIds;
+
     // ─── Events ─────────────────────────────────────────────────
 
     event ProofAnchored(
         uint256 indexed proofId,
         address indexed owner,
         bytes32 indexed audioHash,
+        bytes32 voiceHash,
         string  ipfsCid,
         string  title,
         uint256 timestamp
@@ -80,6 +85,7 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
      */
     function anchorProof(
         bytes32 audioHash,
+        bytes32 voiceHash,
         string calldata ipfsCid,
         string calldata title
     ) external whenNotPaused nonReentrant returns (uint256 proofId) {
@@ -96,6 +102,7 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
             id:        proofId,
             owner:     msg.sender,
             audioHash: audioHash,
+            voiceHash: voiceHash,
             ipfsCid:   ipfsCid,
             title:     title,
             timestamp: block.timestamp,
@@ -104,8 +111,11 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
 
         _userProofs[msg.sender].push(proofId);
         _hashToProofId[audioHash] = proofId;
+        if (voiceHash != bytes32(0)) {
+            _voiceHashToProofIds[voiceHash].push(proofId);
+        }
 
-        emit ProofAnchored(proofId, msg.sender, audioHash, ipfsCid, title, block.timestamp);
+        emit ProofAnchored(proofId, msg.sender, audioHash, voiceHash, ipfsCid, title, block.timestamp);
     }
 
     /**
@@ -169,6 +179,14 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
 
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    /**
+     * @notice Get all proof IDs anchored for a given voice identity hash.
+     *         Allows verifying that a voice has been certified before.
+     */
+    function getProofsByVoiceHash(bytes32 voiceHash) external view returns (uint256[] memory) {
+        return _voiceHashToProofIds[voiceHash];
     }
 
     // ─── Internal ───────────────────────────────────────────────

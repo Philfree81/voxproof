@@ -4,7 +4,9 @@ import { AuthRequest } from '../middleware/auth'
 import { anchorHashOnChain } from '../services/blockchainService'
 import { processSession } from '../services/processorService'
 import { sendCertificateEmail } from '../services/emailService'
+import { uploadAudioToPinata } from '../services/pinataService'
 import { env } from '../config/env'
+import { logActivity } from '../services/activityService'
 
 export async function createSession(req: AuthRequest, res: Response) {
   const files = req.files as Express.Multer.File[]
@@ -14,9 +16,20 @@ export async function createSession(req: AuthRequest, res: Response) {
 
   const { language = 'fr', textSetIndex = '0' } = req.body
   const setIndex = parseInt(textSetIndex)
-  if (![0, 1, 2, 3, 4].includes(setIndex)) {
-    return res.status(400).json({ error: 'textSetIndex must be 0-4' })
+  if (isNaN(setIndex) || setIndex < 0) {
+    return res.status(400).json({ error: 'Invalid textSetIndex' })
   }
+
+  // Validate index against active text sets in DB
+  const activeSets = await prisma.textSet.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: 'asc' },
+    select: { name: true },
+  })
+  if (setIndex >= activeSets.length) {
+    return res.status(400).json({ error: `Invalid textSetIndex: must be 0–${activeSets.length - 1}` })
+  }
+  const textSetName = activeSets[setIndex]?.name ?? ''
 
   const user = await prisma.user.findUnique({ where: { id: req.userId } })
   if (!user) return res.status(404).json({ error: 'User not found' })
@@ -65,13 +78,18 @@ export async function createSession(req: AuthRequest, res: Response) {
       setIndex,
       'pending',
       0,
-      validUntil,
+      validUntil ?? undefined,
       kycVerified,
+      textSetName,
     )
+
+    // voiceHash is deterministic from audio — use from first pass
+    const voiceHash = preliminary.voice_hash
 
     // Step 2 — anchor acoustic hash on blockchain
     const { txHash, blockNumber } = await anchorHashOnChain(
       preliminary.acoustic_hash,
+      voiceHash,
       session.id,
     )
 
@@ -83,23 +101,53 @@ export async function createSession(req: AuthRequest, res: Response) {
       setIndex,
       txHash,
       blockNumber,
-      validUntil,
+      validUntil ?? undefined,
       kycVerified,
+      textSetName,
     )
 
     const anchoredAt = new Date()
 
-    // Step 4 — update session + mark purchase as used
+    // Step 4 — upload audio files to Pinata (non-blocking, best-effort)
+    const audioCids: string[] = []
+    if (env.pinataJwt) {
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const cid = await uploadAudioToPinata(
+            files[i].buffer,
+            files[i].originalname || `audio${i + 1}.webm`,
+            session.id,
+          )
+          if (cid) audioCids.push(cid)
+        }
+        console.log(`[Pinata] Uploaded ${audioCids.length} audio(s) for session ${session.id.slice(0, 8)}`)
+      } catch (err) {
+        console.error('[Pinata] Upload failed (non-fatal):', err)
+      }
+    }
+
+    const audioUnpinAt = audioCids.length > 0
+      ? new Date(anchoredAt.getTime() + 5 * 24 * 60 * 60 * 1000)
+      : null
+
+    // Step 5 — update session + mark purchase as used
     await prisma.voiceSession.update({
       where: { id: session.id },
       data: {
         status: 'ANCHORED',
         acousticHash: final.acoustic_hash,
+        voiceHash,
         txHash,
         blockNumber,
         anchoredAt,
         pdfBase64: final.pdf,
+        spectrogramBase64: final.spectrogram,
+        spectrogramMetrics: final.spectrogram_metrics as object,
+        radarChartBase64: final.radar_chart,
+        propertiesChartBase64: final.properties_chart,
         purchaseId: purchase?.id ?? null,
+        audioCids,
+        audioUnpinAt,
       },
     })
 
@@ -110,7 +158,7 @@ export async function createSession(req: AuthRequest, res: Response) {
       })
     }
 
-    // Step 5 — send certificate email (non-blocking: failure doesn't abort the response)
+    // Step 6 — send certificate email (non-blocking: failure doesn't abort the response)
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
     sendCertificateEmail({
       to: { email: user.email, name: fullName },
@@ -120,7 +168,6 @@ export async function createSession(req: AuthRequest, res: Response) {
       blockNumber,
       validUntil,
       pdfBase64: final.pdf,
-      audioFiles: files,
     })
       .then(() =>
         prisma.voiceSession.update({
@@ -130,15 +177,26 @@ export async function createSession(req: AuthRequest, res: Response) {
       )
       .catch((err) => console.error('Failed to send certificate email:', err))
 
+    logActivity('SESSION_ANCHORED', {
+      userId: req.userId,
+      metadata: { sessionId: session.id, txHash, language, acousticHash: final.acoustic_hash },
+      req,
+    })
+
     return res.status(201).json({
       sessionId: session.id,
       acousticHash: final.acoustic_hash,
+      voiceHash,
       txHash,
       blockNumber,
       validUntil: validUntil ? validUntil.toISOString() : null,
       radarChart: final.radar_chart,
       propertiesChart: final.properties_chart,
+      spectrogram: final.spectrogram,
+      spectrogramMetrics: final.spectrogram_metrics,
       pdf: final.pdf,
+      audioCids,
+      audioUnpinAt: audioUnpinAt ? audioUnpinAt.toISOString() : null,
     })
   } catch (err: any) {
     await prisma.voiceSession.update({
@@ -173,6 +231,8 @@ export async function getSessionPdf(req: AuthRequest, res: Response) {
   })
   if (!session) return res.status(404).json({ error: 'Session not found' })
   if (!session.pdfBase64) return res.status(404).json({ error: 'PDF not available for this session' })
+
+  logActivity('PDF_DOWNLOADED', { userId: req.userId, metadata: { sessionId: session.id }, req })
 
   const buf = Buffer.from(session.pdfBase64, 'base64')
   res.setHeader('Content-Type', 'application/pdf')

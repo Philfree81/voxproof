@@ -34,4 +34,13 @@ export const env = {
   brevoApiKey: process.env.BREVO_API_KEY || '',
   brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || 'noreply@voxproof.io',
   brevoSenderName: process.env.BREVO_SENDER_NAME || 'VoxProof',
+
+  pinataJwt: process.env.PINATA_JWT || '',
+
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+  twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
+  notifyWhatsappTo: process.env.NOTIFY_WHATSAPP_TO || '',
 }

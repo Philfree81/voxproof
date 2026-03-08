@@ -45,6 +45,7 @@ model User {
 
   sessions               VoiceSession[]
   purchases              Purchase[]
+  activityLogs           ActivityLog[]
 
   @@map("users")
 }
@@ -67,6 +68,48 @@ model Purchase {
   @@map("purchases")
 }
 
+// ─── Text sets ────────────────────────────────────────────────────────────────
+// Admin-managed sets of 5 reading texts in 3 languages.
+// texts: { fr: string[], en: string[], es: string[] }
+model TextSet {
+  id        String   @id @default(uuid())
+  name      String
+  theme     String   @unique
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  isBuiltin Boolean  @default(false)  // standard sets, read-only
+  texts     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("text_sets")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String   // REGISTER | LOGIN | PURCHASE | SESSION_ANCHORED | PDF_DOWNLOADED | TEXTS_DOWNLOADED
+  metadata  Json?    // { email, sessionId, productType, ... }
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// Global app config (key-value)
+model AppConfig {
+  key   String @id
+  value String
+
+  @@map("app_config")
+}
+
 model VoiceSession {
   id             String        @id @default(uuid())
   userId         String
@@ -78,13 +121,20 @@ model VoiceSession {
   kycVerified    Boolean       @default(false)
 
   acousticHash   String?       @unique
+  voiceHash      String?
   txHash         String?       @unique
   blockNumber    Int?
   anchoredAt     DateTime?
 
-  pdfBase64      String?       @db.Text
+  pdfBase64             String?  @db.Text
+  spectrogramBase64     String?  @db.Text
+  spectrogramMetrics    Json?
+  radarChartBase64      String?  @db.Text
+  propertiesChartBase64 String?  @db.Text
   validUntil     DateTime?     // null = lifetime
   emailSentAt    DateTime?
+  audioCids      String[]      // IPFS CIDs for 5 audio files (available 5 days)
+  audioUnpinAt   DateTime?     // when to unpin from Pinata (anchoredAt + 5 days)
 
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

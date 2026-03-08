@@ -8,8 +8,8 @@ from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-from audio import extract_features, compute_acoustic_hash, aggregate_egemaps
-from charts import generate_radar_chart, generate_properties_chart
+from audio import extract_features, compute_acoustic_hash, aggregate_egemaps, compute_voice_hash
+from charts import generate_radar_chart, generate_properties_chart, generate_spectrogram
 from pdf_gen import generate_certificate
 
 app = FastAPI(title='VoxProof Processor', version='1.0.0')
@@ -32,6 +32,7 @@ async def process_session(
     email: str = Form(...),
     language: str = Form('fr'),
     text_set_index: int = Form(0),
+    text_set_name: str = Form(''),
     tx_hash: str = Form('pending'),
     block_number: int = Form(0),
     valid_until: str = Form(''),
@@ -48,11 +49,13 @@ async def process_session(
     audios = [audio1, audio2, audio3, audio4, audio5]
     egemaps_list = []
     compare_list = []
+    raw_bytes_list = []  # kept for Resemblyzer (UploadFile.read() is one-shot)
 
     for i, audio in enumerate(audios):
         content = await audio.read()
         if not content:
             raise HTTPException(status_code=400, detail=f'Audio {i+1} is empty')
+        raw_bytes_list.append(content)
         try:
             features = extract_features(content, audio.filename or f'audio{i+1}.webm')
             egemaps_list.append(features['egemaps'])
@@ -60,8 +63,14 @@ async def process_session(
         except Exception as e:
             raise HTTPException(status_code=422, detail=f'Feature extraction failed for audio {i+1}: {str(e)}')
 
-    # Acoustic hash from ComParE
+    # Session hash from ComParE (unique per recording)
     acoustic_hash = compute_acoustic_hash(compare_list)
+
+    # Voice identity hash from Resemblyzer (stable across sessions for same person)
+    try:
+        voice_hash = compute_voice_hash(raw_bytes_list)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f'Voice hash computation failed: {str(e)}')
 
     # Average eGeMAPS for charts
     avg_egemaps = aggregate_egemaps(egemaps_list)
@@ -70,6 +79,7 @@ async def process_session(
     try:
         radar_b64 = generate_radar_chart(avg_egemaps)
         properties_b64 = generate_properties_chart(avg_egemaps)
+        spectrogram_b64, spectrogram_metrics = generate_spectrogram(raw_bytes_list)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Chart generation failed: {str(e)}')
 
@@ -81,12 +91,15 @@ async def process_session(
             last_name=last_name,
             email=email,
             acoustic_hash=acoustic_hash,
+            voice_hash=voice_hash,
             tx_hash=tx_hash,
             block_number=block_number,
             language=language,
             text_set_index=text_set_index,
+            text_set_name=text_set_name,
             radar_b64=radar_b64,
             properties_b64=properties_b64,
+            spectrogram_b64=spectrogram_b64,
             anchored_at=datetime.utcnow(),
             valid_until=valid_until_dt,
             kyc_verified=kyc_verified,
@@ -97,7 +110,10 @@ async def process_session(
 
     return JSONResponse({
         'acoustic_hash': acoustic_hash,
+        'voice_hash': voice_hash,
         'radar_chart': radar_b64,
         'properties_chart': properties_b64,
+        'spectrogram': spectrogram_b64,
+        'spectrogram_metrics': spectrogram_metrics,
         'pdf': pdf_b64,
     })

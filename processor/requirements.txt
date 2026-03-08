@@ -6,3 +6,4 @@ numpy==1.26.4
 matplotlib==3.9.0
 reportlab==4.2.2
 pillow==10.4.0
+resemblyzer==0.1.4

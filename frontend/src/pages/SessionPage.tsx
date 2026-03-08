@@ -1,14 +1,90 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useRecorder } from '../hooks/useRecorder'
-import { SET_LABELS, getText, Language } from '../data/readingTexts'
+import { SET_LABELS, getText, Language, READING_SETS } from '../data/readingTexts'
 import api from '../services/api'
 
 type Step = 'setup' | 'recording' | 'review' | 'processing' | 'done'
 
 const LANG_NAMES: Record<Language, string> = { fr: 'Français', en: 'English', es: 'Español' }
+
+const PROCESSING_STEPS = [
+  { label: 'Analyse acoustique', detail: 'Mesure du timbre, du rythme et de l\'énergie de votre voix', duration: 18000 },
+  { label: 'Calcul de l\'empreinte de session', detail: 'Génération d\'un identifiant unique pour cet enregistrement précis', duration: 22000 },
+  { label: 'Modélisation biométrique', detail: 'Construction de votre profil vocal personnel et stable', duration: 35000 },
+  { label: 'Ancrage blockchain', detail: 'Inscription immuable de vos empreintes sur la blockchain', duration: 25000 },
+  { label: 'Génération du certificat', detail: 'Création du certificat officiel avec vos graphes acoustiques', duration: 10000 },
+]
+
+function ProcessingScreen() {
+  const [activeStep, setActiveStep] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
+  const startRef = useRef(Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 500)
+    return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    let total = 0
+    const timers: ReturnType<typeof setTimeout>[] = []
+    PROCESSING_STEPS.forEach((s, i) => {
+      if (i === PROCESSING_STEPS.length - 1) return
+      total += s.duration
+      const t = setTimeout(() => setActiveStep(i + 1), total)
+      timers.push(t)
+    })
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
+  return (
+    <Layout>
+      <div className="max-w-lg mx-auto py-12 space-y-8">
+        <div className="text-center">
+          <div className="w-14 h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900">Analyse en cours…</h2>
+          <p className="text-gray-400 text-sm mt-1">Durée habituelle : 1 à 2 minutes</p>
+        </div>
+
+        <div className="space-y-3">
+          {PROCESSING_STEPS.map((s, i) => {
+            const done = i < activeStep
+            const active = i === activeStep
+            return (
+              <div key={i} className={`rounded-xl border p-4 transition-all duration-500 ${
+                done ? 'border-green-200 bg-green-50' :
+                active ? 'border-indigo-300 bg-indigo-50' :
+                'border-gray-100 bg-white opacity-40'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                    done ? 'bg-green-500 text-white' :
+                    active ? 'bg-indigo-600 text-white' :
+                    'bg-gray-200 text-gray-400'
+                  }`}>
+                    {done ? '✓' : i + 1}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${done ? 'text-green-700' : active ? 'text-indigo-700' : 'text-gray-400'}`}>
+                      {s.label}
+                      {active && <span className="ml-2 inline-block w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin align-middle" />}
+                    </p>
+                    <p className={`text-xs mt-0.5 ${done ? 'text-green-600' : active ? 'text-indigo-500' : 'text-gray-300'}`}>{s.detail}</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <p className="text-center text-xs text-gray-400">Temps écoulé : {elapsed}s — ne fermez pas cette page</p>
+      </div>
+    </Layout>
+  )
+}
 
 export default function SessionPage() {
   const navigate = useNavigate()
@@ -26,11 +102,41 @@ export default function SessionPage() {
   const [hasCredit, setHasCredit] = useState<boolean | null>(null)
   const [purchasing, setPurchasing] = useState(false)
 
+  // Dynamic text sets from DB (fallback to hardcoded if empty)
+  const [dbSets, setDbSets] = useState<Array<{ id: string; name: string; isDefault: boolean; texts: { fr: string[]; en: string[]; es: string[] } }>>([])
+  const [selectionMode, setSelectionMode] = useState<'default' | 'random'>('default')
+
   useEffect(() => {
+    api.get('/sessions/text-sets').then(r => {
+      if (r.data.sets?.length > 0) {
+        setDbSets(r.data.sets)
+        const mode = r.data.mode as 'default' | 'random'
+        setSelectionMode(mode)
+        if (mode === 'random') {
+          const idx = Math.floor(Math.random() * r.data.sets.length)
+          setSetIndex(idx)
+        } else {
+          const defIdx = r.data.sets.findIndex((s: any) => s.isDefault)
+          if (defIdx >= 0) setSetIndex(defIdx)
+        }
+      }
+    }).catch(() => {})
     api.get('/payments/status')
       .then(r => setHasCredit(r.data.hasCredit))
       .catch(() => setHasCredit(false))
   }, [])
+
+  // Helpers to get text/label from DB sets or fallback to hardcoded
+  function getSetLabel(i: number): string {
+    return dbSets.length > 0 ? dbSets[i]?.name ?? '' : SET_LABELS[language][i]
+  }
+  function getSetCount(): number {
+    return dbSets.length > 0 ? dbSets.length : READING_SETS.length
+  }
+  function getTextContent(sIdx: number, tIdx: number, lang: Language): string {
+    if (dbSets.length > 0) return dbSets[sIdx]?.texts[lang]?.[tIdx] ?? ''
+    return getText(sIdx, tIdx, lang)
+  }
 
   function formatDuration(s: number) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -170,23 +276,46 @@ export default function SessionPage() {
           </div>
 
           {/* Text set */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ensemble de textes</label>
-            <div className="space-y-2">
-              {SET_LABELS[language].map((label, i) => (
-                <button key={i} onClick={() => setSetIndex(i)}
-                  className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors
-                    ${setIndex === i ? 'bg-indigo-50 border-indigo-400 text-indigo-700 font-medium' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
-                  <span className="font-semibold mr-2">{i + 1}.</span>{label}
+          {selectionMode === 'random' ? (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🎲</span>
+                <div>
+                  <p className="text-sm font-semibold text-indigo-800">Thème sélectionné aléatoirement</p>
+                  <p className="text-indigo-600 text-sm font-medium mt-0.5">{getSetLabel(setIndex)}</p>
+                </div>
+              </div>
+              {dbSets.length > 1 && (
+                <button
+                  onClick={() => {
+                    const newIdx = (setIndex + 1 + Math.floor(Math.random() * (dbSets.length - 1))) % dbSets.length
+                    setSetIndex(newIdx)
+                  }}
+                  className="text-xs text-indigo-600 border border-indigo-300 rounded-lg px-3 py-1.5 hover:bg-indigo-100 transition-colors whitespace-nowrap font-medium"
+                >
+                  🎲 Nouveau tirage
                 </button>
-              ))}
+              )}
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ensemble de textes</label>
+              <div className="space-y-2">
+                {Array.from({ length: getSetCount() }, (_, i) => getSetLabel(i)).map((label, i) => (
+                  <button key={i} onClick={() => setSetIndex(i)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors
+                      ${setIndex === i ? 'bg-indigo-50 border-indigo-400 text-indigo-700 font-medium' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                    <span className="font-semibold mr-2">{i + 1}.</span>{label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Preview first text */}
           <div className="bg-gray-50 rounded-xl p-4">
             <p className="text-xs text-gray-400 font-semibold uppercase mb-2">Aperçu — Texte 1/5</p>
-            <p className="text-sm text-gray-600 leading-relaxed">{getText(setIndex, 0, language)}</p>
+            <p className="text-sm text-gray-600 leading-relaxed">{getTextContent(setIndex, 0, language)}</p>
           </div>
 
           <button onClick={() => setStep('recording')}
@@ -220,7 +349,7 @@ export default function SessionPage() {
         <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
           <p className="text-xs font-semibold text-indigo-400 uppercase mb-3">Lisez ce texte</p>
           <p className="text-base text-gray-800 leading-relaxed">
-            {getText(setIndex, recordings.length, language)}
+            {getTextContent(setIndex, recordings.length, language)}
           </p>
         </div>
 
@@ -345,17 +474,7 @@ export default function SessionPage() {
   )
 
   // ─── PROCESSING ───────────────────────────────────────────────────────────
-  if (step === 'processing') return (
-    <Layout>
-      <div className="max-w-xl mx-auto flex flex-col items-center gap-6 py-16">
-        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-900">Analyse en cours…</h2>
-          <p className="text-gray-500 text-sm mt-1">Extraction de la signature acoustique et ancrage blockchain.</p>
-        </div>
-      </div>
-    </Layout>
-  )
+  if (step === 'processing') return <ProcessingScreen />
 
   // ─── DONE ─────────────────────────────────────────────────────────────────
   if (step === 'done' && result) return (
@@ -364,26 +483,64 @@ export default function SessionPage() {
         <div className="text-center">
           <div className="text-4xl mb-2">🎉</div>
           <h1 className="text-2xl font-bold text-gray-900">Signature vocale certifiée !</h1>
-          <p className="text-gray-500 text-sm mt-1">Votre empreinte acoustique est ancrée sur la blockchain.</p>
+          <p className="text-gray-500 text-sm mt-1">Votre empreinte acoustique est ancrée sur la blockchain Avalanche.</p>
         </div>
 
-        {/* Hash */}
+        {/* Session hash */}
         <div className="bg-gray-900 rounded-xl p-4">
-          <p className="text-xs text-gray-400 font-semibold uppercase mb-2">Empreinte acoustique (SHA-256)</p>
+          <p className="text-xs text-gray-400 font-semibold uppercase mb-1">Empreinte de session (SHA-256)</p>
+          <p className="text-xs text-gray-500 mb-2">Hash unique de cet enregistrement précis — ancré on-chain</p>
           <p className="text-green-400 font-mono text-xs break-all">{result.acousticHash}</p>
+        </div>
+
+        {/* Voice hash */}
+        <div className="rounded-xl p-4" style={{ background: '#1e3a5f' }}>
+          <p className="text-xs font-semibold uppercase mb-1" style={{ color: '#93c5fd' }}>Empreinte vocale (identité biométrique)</p>
+          <p className="text-xs mb-2" style={{ color: '#60a5fa' }}>Hash stable de votre profil vocal — identique à chaque session</p>
+          <p className="font-mono text-xs break-all" style={{ color: '#bfdbfe' }}>{result.voiceHash}</p>
+        </div>
+
+        {/* Blockchain info */}
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-medium text-gray-500 uppercase">Transaction</span>
+            <a
+              href={`https://snowtrace.io/tx/${result.txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-mono text-indigo-600 hover:underline truncate max-w-xs"
+            >
+              {result.txHash.slice(0, 20)}…{result.txHash.slice(-8)}
+            </a>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-medium text-gray-500 uppercase">Bloc</span>
+            <span className="text-xs font-mono text-gray-700">#{result.blockNumber.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-xs font-medium text-gray-500 uppercase">Réseau</span>
+            <span className="text-xs text-gray-700">Avalanche C-Chain (mainnet)</span>
+          </div>
         </div>
 
         {/* Charts */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-3">
-            <p className="text-xs font-semibold text-gray-500 mb-2 text-center">Profil acoustique</p>
+            <p className="text-xs font-semibold text-gray-500 mb-2 text-center">Profil acoustique radar</p>
             <img src={`data:image/png;base64,${result.radarChart}`} alt="Radar" className="w-full" />
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-3">
-            <p className="text-xs font-semibold text-gray-500 mb-2 text-center">Propriétés</p>
+            <p className="text-xs font-semibold text-gray-500 mb-2 text-center">Propriétés détaillées</p>
             <img src={`data:image/png;base64,${result.propertiesChart}`} alt="Properties" className="w-full" />
           </div>
         </div>
+
+        {/* Spectrogram */}
+        {result.spectrogram && (
+          <div className="rounded-xl overflow-hidden">
+            <img src={`data:image/png;base64,${result.spectrogram}`} alt="Spectrogramme" className="w-full" />
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3">
