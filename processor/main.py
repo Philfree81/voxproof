@@ -66,9 +66,9 @@ async def process_session(
     # Session hash from ComParE (unique per recording)
     acoustic_hash = compute_acoustic_hash(compare_list)
 
-    # Voice identity hash from Resemblyzer (stable across sessions for same person)
+    # Voice identity hash + centroid from Resemblyzer
     try:
-        voice_hash = compute_voice_hash(raw_bytes_list)
+        voice_hash, voice_centroid = compute_voice_hash(raw_bytes_list)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f'Voice hash computation failed: {str(e)}')
 
@@ -111,6 +111,7 @@ async def process_session(
     return JSONResponse({
         'acoustic_hash': acoustic_hash,
         'voice_hash': voice_hash,
+        'voice_centroid': voice_centroid,
         'radar_chart': radar_b64,
         'properties_chart': properties_b64,
         'spectrogram': spectrogram_b64,

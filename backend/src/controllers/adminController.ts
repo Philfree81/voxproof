@@ -102,7 +102,10 @@ export async function updateTextSet(req: AuthRequest, res: Response) {
   const { name, theme, isActive, isDefault, texts } = req.body
 
   const existing = await prisma.textSet.findUnique({ where: { id } })
-  if (existing?.isBuiltin) return res.status(403).json({ error: 'Built-in sets cannot be modified' })
+  // Builtin sets: only isActive can be toggled
+  if (existing?.isBuiltin && (name !== undefined || theme !== undefined || isDefault !== undefined || texts !== undefined)) {
+    return res.status(403).json({ error: 'Built-in sets: only isActive can be changed' })
+  }
 
   // Only one default at a time
   if (isDefault) {
@@ -242,6 +245,56 @@ export async function listActivityLogs(req: AuthRequest, res: Response) {
     },
   })
   return res.json(logs)
+}
+
+// ─── Voice Comparison ─────────────────────────────────────────────────────────
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0
+  for (let i = 0; i < a.length; i++) {
+    dot   += a[i] * b[i]
+    normA += a[i] * a[i]
+    normB += b[i] * b[i]
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
+}
+
+export async function compareSessions(req: AuthRequest, res: Response) {
+  const { sessionIdA, sessionIdB } = req.body
+  if (!sessionIdA || !sessionIdB) {
+    return res.status(400).json({ error: 'sessionIdA and sessionIdB required' })
+  }
+  if (sessionIdA === sessionIdB) {
+    return res.status(400).json({ error: 'Sessions must be different' })
+  }
+
+  const [a, b] = await Promise.all([
+    prisma.voiceSession.findUnique({ where: { id: sessionIdA }, select: { id: true, voiceCentroid: true, createdAt: true, user: { select: { email: true } } } }),
+    prisma.voiceSession.findUnique({ where: { id: sessionIdB }, select: { id: true, voiceCentroid: true, createdAt: true, user: { select: { email: true } } } }),
+  ])
+
+  if (!a || !b) return res.status(404).json({ error: 'One or both sessions not found' })
+  if (!a.voiceCentroid || !b.voiceCentroid) {
+    return res.status(422).json({ error: 'One or both sessions have no voice centroid (recorded before this feature was added)' })
+  }
+
+  const centroidA = a.voiceCentroid as number[]
+  const centroidB = b.voiceCentroid as number[]
+  const similarity = cosineSimilarity(centroidA, centroidB)
+
+  const verdict =
+    similarity >= 0.90 ? 'same_speaker_high_confidence' :
+    similarity >= 0.80 ? 'same_speaker_likely' :
+    similarity >= 0.70 ? 'uncertain' :
+    'different_speaker'
+
+  return res.json({
+    similarity: Math.round(similarity * 10000) / 10000,
+    similarityPct: Math.round(similarity * 1000) / 10,
+    verdict,
+    sessionA: { id: a.id, email: a.user?.email, createdAt: a.createdAt },
+    sessionB: { id: b.id, email: b.user?.email, createdAt: b.createdAt },
+  })
 }
 
 // ─── Sessions ─────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ export interface SpectrogramMetrics {
 export interface ProcessorResult {
   acoustic_hash: string
   voice_hash: string            // stable biometric voice identity hash
+  voice_centroid: number[]      // GE2E d-vector centroid (256 floats) for cosine similarity
   radar_chart: string           // base64 PNG
   properties_chart: string      // base64 PNG
   spectrogram: string           // base64 PNG

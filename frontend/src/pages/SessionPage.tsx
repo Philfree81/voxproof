@@ -8,7 +8,12 @@ import api from '../services/api'
 
 type Step = 'setup' | 'recording' | 'review' | 'processing' | 'done'
 
-const LANG_NAMES: Record<Language, string> = { fr: 'Français', en: 'English', es: 'Español' }
+const LANG_NAMES: Record<Language, string> = {
+  fr: 'Français', en: 'English', es: 'Español',
+  de: 'Deutsch', it: 'Italiano', pt: 'Português',
+  no: 'Norsk', sv: 'Svenska', fi: 'Suomi',
+  pl: 'Polski', uk: 'Українська', ar: 'العربية',
+}
 
 const PROCESSING_STEPS = [
   { label: 'Analyse acoustique', detail: 'Mesure du timbre, du rythme et de l\'énergie de votre voix', duration: 18000 },
@@ -103,7 +108,7 @@ export default function SessionPage() {
   const [purchasing, setPurchasing] = useState(false)
 
   // Dynamic text sets from DB (fallback to hardcoded if empty)
-  const [dbSets, setDbSets] = useState<Array<{ id: string; name: string; isDefault: boolean; texts: { fr: string[]; en: string[]; es: string[] } }>>([])
+  const [dbSets, setDbSets] = useState<Array<{ id: string; name: string; isDefault: boolean; texts: Record<string, string[]> }>>([])
   const [selectionMode, setSelectionMode] = useState<'default' | 'random'>('default')
 
   useEffect(() => {
@@ -134,8 +139,11 @@ export default function SessionPage() {
     return dbSets.length > 0 ? dbSets.length : READING_SETS.length
   }
   function getTextContent(sIdx: number, tIdx: number, lang: Language): string {
-    if (dbSets.length > 0) return dbSets[sIdx]?.texts[lang]?.[tIdx] ?? ''
-    return getText(sIdx, tIdx, lang)
+    if (dbSets.length > 0) {
+      const texts = dbSets[sIdx]?.texts
+      return texts?.[lang]?.[tIdx] ?? texts?.['en']?.[tIdx] ?? texts?.['fr']?.[tIdx] ?? ''
+    }
+    return getText(sIdx, tIdx, (['fr', 'en', 'es'] as Language[]).includes(lang) ? lang : 'en')
   }
 
   function formatDuration(s: number) {
@@ -219,7 +227,8 @@ export default function SessionPage() {
         form.append('audio', blob, `audio${i + 1}.webm`)
       })
       form.append('language', language)
-      form.append('textSetIndex', String(setIndex))
+      const selectedSetId = dbSets[setIndex]?.id
+      if (selectedSetId) form.append('textSetId', selectedSetId)
 
       const { data } = await api.post('/sessions', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -227,7 +236,9 @@ export default function SessionPage() {
       setResult(data)
       setStep('done')
     } catch (err: any) {
-      setSubmitError(err.response?.data?.error || 'Processing failed')
+      const msg = err.response?.data?.error || err.message || 'Processing failed'
+      // Surface processor detail if present (e.g. "Feature extraction failed for audio 2: …")
+      setSubmitError(msg)
       setStep('review')
     }
   }
@@ -264,10 +275,10 @@ export default function SessionPage() {
           {/* Language */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Langue d'enregistrement</label>
-            <div className="flex gap-2">
-              {(['fr', 'en', 'es'] as Language[]).map(l => (
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(LANG_NAMES) as Language[]).map(l => (
                 <button key={l} onClick={() => setLanguage(l)}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors
+                  className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
                     ${language === l ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                   {LANG_NAMES[l]}
                 </button>
@@ -537,8 +548,36 @@ export default function SessionPage() {
 
         {/* Spectrogram */}
         {result.spectrogram && (
-          <div className="rounded-xl overflow-hidden">
+          <div className="rounded-xl overflow-hidden border border-gray-200 bg-[#0f172a]">
             <img src={`data:image/png;base64,${result.spectrogram}`} alt="Spectrogramme" className="w-full" />
+            {result.spectrogramMetrics && (
+              <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+                <div className="bg-slate-800 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Centroïde</p>
+                  <p className="text-sm font-mono text-white font-semibold">{Math.round(result.spectrogramMetrics.centroide_hz)} Hz</p>
+                </div>
+                <div className="bg-slate-800 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Rolloff 85%</p>
+                  <p className="text-sm font-mono text-white font-semibold">{Math.round(result.spectrogramMetrics.rolloff_hz)} Hz</p>
+                </div>
+                <div className="bg-slate-800 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Variabilité</p>
+                  <p className="text-sm font-mono text-white font-semibold">{(result.spectrogramMetrics.variabilite * 100).toFixed(0)} %</p>
+                </div>
+                <div className="bg-slate-700 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Graves &lt;500Hz</p>
+                  <p className="text-sm font-mono text-white font-semibold">{result.spectrogramMetrics.energie_grave_pct.toFixed(1)} %</p>
+                </div>
+                <div className="bg-slate-700 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Médium 500-3kHz</p>
+                  <p className="text-sm font-mono text-white font-semibold">{result.spectrogramMetrics.energie_medium_pct.toFixed(1)} %</p>
+                </div>
+                <div className="bg-slate-700 rounded-lg px-3 py-2 text-center">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">Aigus &gt;3kHz</p>
+                  <p className="text-sm font-mono text-white font-semibold">{result.spectrogramMetrics.energie_aigu_pct.toFixed(1)} %</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

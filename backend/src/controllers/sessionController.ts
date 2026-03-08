@@ -14,22 +14,26 @@ export async function createSession(req: AuthRequest, res: Response) {
     return res.status(400).json({ error: 'Exactly 5 audio files are required' })
   }
 
-  const { language = 'fr', textSetIndex = '0' } = req.body
-  const setIndex = parseInt(textSetIndex)
-  if (isNaN(setIndex) || setIndex < 0) {
-    return res.status(400).json({ error: 'Invalid textSetIndex' })
-  }
+  const { language = 'fr', textSetId } = req.body
 
-  // Validate index against active text sets in DB
-  const activeSets = await prisma.textSet.findMany({
-    where: { isActive: true },
-    orderBy: { createdAt: 'asc' },
-    select: { name: true },
-  })
-  if (setIndex >= activeSets.length) {
-    return res.status(400).json({ error: `Invalid textSetIndex: must be 0–${activeSets.length - 1}` })
+  // Resolve text set: by ID (preferred) or fall back to first active set
+  let resolvedSet: { id: string; name: string } | null = null
+  if (textSetId) {
+    resolvedSet = await prisma.textSet.findFirst({
+      where: { id: textSetId, isActive: true },
+      select: { id: true, name: true },
+    })
+    if (!resolvedSet) return res.status(400).json({ error: 'Invalid or inactive textSetId' })
+  } else {
+    resolvedSet = await prisma.textSet.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true },
+    })
+    if (!resolvedSet) return res.status(400).json({ error: 'No active text set found' })
   }
-  const textSetName = activeSets[setIndex]?.name ?? ''
+  const textSetName = resolvedSet.name
+  const setIndex = 0 // kept for schema compatibility
 
   const user = await prisma.user.findUnique({ where: { id: req.userId } })
   if (!user) return res.status(404).json({ error: 'User not found' })
@@ -137,6 +141,7 @@ export async function createSession(req: AuthRequest, res: Response) {
         status: 'ANCHORED',
         acousticHash: final.acoustic_hash,
         voiceHash,
+        voiceCentroid: final.voice_centroid,
         txHash,
         blockNumber,
         anchoredAt,

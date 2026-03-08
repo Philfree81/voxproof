@@ -122,6 +122,7 @@ model VoiceSession {
 
   acousticHash   String?       @unique
   voiceHash      String?
+  voiceCentroid  Json?             // GE2E d-vector centroid (256 float32) for cosine similarity
   txHash         String?       @unique
   blockNumber    Int?
   anchoredAt     DateTime?

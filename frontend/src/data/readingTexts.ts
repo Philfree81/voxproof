@@ -5,7 +5,7 @@
  * Texts are phonetically balanced to ensure full acoustic coverage.
  */
 
-export type Language = 'fr' | 'en' | 'es'
+export type Language = 'fr' | 'en' | 'es' | 'de' | 'it' | 'pt' | 'no' | 'sv' | 'fi' | 'pl' | 'uk' | 'ar'
 
 export interface ReadingText {
   id: string        // e.g. "set0_text0"
@@ -189,15 +189,30 @@ export const READING_SETS: ReadingText[][] = [
 ]
 
 export function getText(setIndex: number, textIndex: number, language: Language): string {
-  return READING_SETS[setIndex]?.[textIndex]?.[language] ?? ''
+  const lang: 'fr' | 'en' | 'es' = (['fr', 'en', 'es'] as Language[]).includes(language)
+    ? language as 'fr' | 'en' | 'es'
+    : 'en'
+  return READING_SETS[setIndex]?.[textIndex]?.[lang] ?? ''
 }
 
 export function getSet(setIndex: number, language: Language): string[] {
-  return READING_SETS[setIndex]?.map(t => t[language]) ?? []
+  const lang: 'fr' | 'en' | 'es' = (['fr', 'en', 'es'] as Language[]).includes(language)
+    ? language as 'fr' | 'en' | 'es'
+    : 'en'
+  return READING_SETS[setIndex]?.map(t => t[lang]) ?? []
 }
 
 export const SET_LABELS: Record<Language, string[]> = {
   fr: ['Identité & Présence', 'Nature & Éléments', 'Vie quotidienne', 'Pensée & Philosophie', 'Science & Technologie'],
   en: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
   es: ['Identidad & Presencia', 'Naturaleza & Elementos', 'Vida cotidiana', 'Pensamiento & Filosofía', 'Ciencia & Tecnología'],
+  de: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  it: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  pt: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  no: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  sv: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  fi: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  pl: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  uk: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
+  ar: ['Identity & Presence', 'Nature & Elements', 'Daily Life', 'Thought & Philosophy', 'Science & Technology'],
 }

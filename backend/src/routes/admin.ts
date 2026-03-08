@@ -3,7 +3,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth'
 import {
   listUsers, updateUser, deleteUser,
   addCredit, deleteCredit,
-  listSessions,
+  listSessions, compareSessions,
   listTextSets, createTextSet, updateTextSet, deleteTextSet,
   generateTextSet, setTextSelectionMode,
   listActivityLogs,
@@ -18,6 +18,7 @@ router.delete('/users/:id', deleteUser)
 router.post('/users/:id/credit', addCredit)
 router.delete('/purchases/:id', deleteCredit)
 router.get('/sessions', listSessions)
+router.post('/sessions/compare', compareSessions)
 
 router.get('/text-sets', listTextSets)
 router.post('/text-sets', createTextSet)

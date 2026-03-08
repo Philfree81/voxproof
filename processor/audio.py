@@ -7,6 +7,8 @@ Audio decoding via PyAV (bundled ffmpeg codecs — no system ffmpeg required).
 
 import hashlib
 import io
+import os
+import tempfile
 import numpy as np
 import av
 import opensmile
@@ -29,20 +31,53 @@ def _decode_audio(audio_bytes: bytes) -> tuple[np.ndarray, int]:
     using PyAV (bundled codecs, no system ffmpeg needed).
     Returns (signal, sample_rate) where signal shape is (channels, samples).
     """
-    container = av.open(io.BytesIO(audio_bytes))
-    stream = next(s for s in container.streams if s.type == 'audio')
-    sample_rate = stream.codec_context.sample_rate
+    if not audio_bytes or len(audio_bytes) < 512:
+        raise ValueError(f'Audio data too small ({len(audio_bytes) if audio_bytes else 0} bytes) — recording may be incomplete')
 
-    frames = []
-    for frame in container.decode(stream):
-        arr = frame.to_ndarray()           # (channels, samples) float32 or int16
-        if arr.dtype != np.float32:
-            arr = arr.astype(np.float32) / np.iinfo(arr.dtype).max
-        frames.append(arr)
+    # Write to a temp file: webm from MediaRecorder has no SeekHead at start,
+    # so FFmpeg needs real file access to seek and parse the container correctly.
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix='.webm')
+    try:
+        with os.fdopen(tmp_fd, 'wb') as f:
+            f.write(audio_bytes)
 
-    container.close()
-    signal = np.concatenate(frames, axis=1)  # (channels, total_samples)
-    return signal, sample_rate
+        try:
+            container = av.open(tmp_path)
+        except av.FFmpegError as e:
+            raise ValueError(f'Cannot decode audio ({len(audio_bytes)} bytes): {e}')
+
+        audio_streams = [s for s in container.streams if s.type == 'audio']
+        if not audio_streams:
+            container.close()
+            raise ValueError('No audio stream found in the recording')
+
+        stream = audio_streams[0]
+        sample_rate = stream.codec_context.sample_rate
+
+        frames = []
+        for frame in container.decode(stream):
+            arr = frame.to_ndarray()           # (channels, samples) float32 or int16
+            if arr.dtype != np.float32:
+                arr = arr.astype(np.float32) / np.iinfo(arr.dtype).max
+            frames.append(arr)
+
+        container.close()
+
+        if not frames:
+            raise ValueError('Audio decoded but contains no frames — recording too short')
+
+        signal = np.concatenate(frames, axis=1)  # (channels, total_samples)
+
+        if signal.shape[1] < sample_rate:
+            raise ValueError(f'Recording too short: {signal.shape[1] / sample_rate:.1f}s (minimum 1s required)')
+
+        return signal, sample_rate
+
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def extract_features(audio_bytes: bytes, filename: str) -> dict:
@@ -93,18 +128,21 @@ def aggregate_egemaps(egemaps_list: list[np.ndarray]) -> np.ndarray:
 
 def compute_voice_hash(audio_bytes_list: list[bytes]) -> str:
     """
-    Compute a stable voice identity hash using Resemblyzer GE2E d-vectors.
+    Compute a stable, speaker-discriminative voice identity hash.
 
     Algorithm:
       1. Decode each audio to mono float32 via PyAV
       2. preprocess_wav: resample to 16kHz, normalize amplitude
       3. embed_utterance: GE2E neural net → d-vector (256 dim)
-      4. Average the 5 embeddings → stable voice centroid
-      5. Sign quantization: bit_i = 1 if avg[i] > 0 else 0  → 256 bits
-      6. SHA-256 of those 256 bits → 64-char hex hash
+      4. Majority-vote sign per dimension across all recordings:
+            bit_i = 1 if majority of recordings have emb[i] > 0, else 0
+         → 256 bits stable across sessions of the same speaker
+      5. SHA-256 of those 256 bits → 64-char hex hash
 
-    Same person across sessions → ~94% bit stability → same hash.
-    Different persons → different hash (cosine distance >> sign threshold).
+    Why majority vote over all 256 dims (not top-128 by |abs|):
+      - High-|abs| dims are speaker-INDEPENDENT (population bias) → same for everyone
+      - Discriminative speaker identity lives in ALL 256 dims, including small ones
+      - Majority vote over 5 recordings suppresses per-session noise
     """
     encoder = _get_encoder()
     embeddings = []
@@ -116,10 +154,15 @@ def compute_voice_hash(audio_bytes_list: list[bytes]) -> str:
         emb = encoder.embed_utterance(wav)  # (256,) float32
         embeddings.append(emb)
 
-    avg_emb = np.mean(embeddings, axis=0)  # (256,) — stable centroid
+    embeddings_arr = np.stack(embeddings, axis=0)  # (N, 256)
 
-    # Keep only the 128 dimensions with highest absolute value (far from 0 = stable sign)
-    # Dimensions near 0 flip easily between sessions → excluded
-    indices = np.sort(np.argsort(np.abs(avg_emb))[-128:])
-    stable_bits = (avg_emb[indices] > 0).astype(np.uint8)  # 128 stable bits
-    return hashlib.sha256(stable_bits.tobytes()).hexdigest()
+    # Centroid: mean of all d-vectors
+    centroid = embeddings_arr.mean(axis=0)  # (256,)
+
+    # Majority vote on signs for the hash
+    sign_matrix = (embeddings_arr > 0).astype(np.uint8)  # (N, 256)
+    votes = sign_matrix.sum(axis=0)  # (256,)
+    majority_bits = (votes > len(audio_bytes_list) / 2).astype(np.uint8)  # (256,)
+    voice_hash = hashlib.sha256(majority_bits.tobytes()).hexdigest()
+
+    return voice_hash, centroid.tolist()  # centroid as list of 256 floats

@@ -16,16 +16,11 @@ interface ActivityLog {
 }
 
 const PREDEFINED_THEMES = [
-  { key: 'poetry',      label: 'Poésie classique' },
-  { key: 'cinema',      label: 'Dialogues de cinéma' },
-  { key: 'literature',  label: 'Littérature romanesque' },
-  { key: 'philosophy',  label: 'Philosophie & Sagesse' },
-  { key: 'nature',      label: 'Nature & Paysages' },
-  { key: 'history',     label: 'Histoire & Civilisations' },
-  { key: 'tale',        label: 'Conte & Imaginaire' },
-  { key: 'sport',       label: 'Sport & Dépassement' },
-  { key: 'science',     label: 'Science & Découverte' },
-  { key: 'identity',    label: 'Identité & Mémoire' },
+  { key: 'vocal_threats',  label: 'Menaces sur la voix (deepfakes, vol, tromperies)' },
+  { key: 'voice_aging',    label: 'La voix au fil de la vie' },
+  { key: 'sovereignty',    label: 'Souveraineté & Dignité' },
+  { key: 'action_memory',  label: 'Action & Mémoire' },
+  { key: 'voice_impact',   label: "L'importance de la voix" },
 ]
 
 interface TextSet {
@@ -85,6 +80,27 @@ export default function AdminPage() {
   const [editKyc, setEditKyc] = useState<KycStatus>('PENDING')
   const [saving, setSaving] = useState(false)
 
+  // Compare tab
+  const [compareA, setCompareA] = useState('')
+  const [compareB, setCompareB] = useState('')
+  const [compareResult, setCompareResult] = useState<{ similarity: number; similarityPct: number; verdict: string; sessionA: any; sessionB: any } | null>(null)
+  const [compareLoading, setCompareLoading] = useState(false)
+  const [compareError, setCompareError] = useState('')
+
+  async function handleCompare() {
+    setCompareError('')
+    setCompareResult(null)
+    setCompareLoading(true)
+    try {
+      const { data } = await api.post('/admin/sessions/compare', { sessionIdA: compareA.trim(), sessionIdB: compareB.trim() })
+      setCompareResult(data)
+    } catch (e: any) {
+      setCompareError(e.response?.data?.error || 'Erreur lors de la comparaison')
+    } finally {
+      setCompareLoading(false)
+    }
+  }
+
   // Activity tab
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
   const [activityFilter, setActivityFilter] = useState('')
@@ -96,6 +112,15 @@ export default function AdminPage() {
   const [selectedTheme, setSelectedTheme] = useState('poetry')
   const [expandedSet, setExpandedSet] = useState<string | null>(null)
   const [previewLang, setPreviewLang] = useState<'fr' | 'en' | 'es'>('fr')
+
+  // Manual creation form
+  const [showManualForm, setShowManualForm] = useState(false)
+  const [manualName, setManualName] = useState('')
+  const [manualTheme, setManualTheme] = useState('poetry')
+  const emptyTexts = () => Array(5).fill('')
+  const [manualTexts, setManualTexts] = useState<{ fr: string[]; en: string[]; es: string[] }>({ fr: emptyTexts(), en: emptyTexts(), es: emptyTexts() })
+  const [manualLang, setManualLang] = useState<'fr' | 'en' | 'es'>('fr')
+  const [creatingManual, setCreatingManual] = useState(false)
 
   useEffect(() => {
     if (user && !user.isAdmin) navigate('/', { replace: true })
@@ -192,6 +217,29 @@ export default function AdminPage() {
     const next = textMode === 'default' ? 'random' : 'default'
     await api.post('/admin/text-sets/mode', { mode: next })
     setTextMode(next)
+  }
+
+  async function handleCreateManual() {
+    if (!manualName.trim()) return alert('Nom requis')
+    if (manualTexts.fr.some(t => !t.trim()) || manualTexts.en.some(t => !t.trim()) || manualTexts.es.some(t => !t.trim())) {
+      return alert('Les 5 textes doivent être remplis dans les 3 langues (FR, EN, ES)')
+    }
+    setCreatingManual(true)
+    try {
+      const { data } = await api.post('/admin/text-sets', {
+        name: manualName.trim(),
+        theme: manualTheme,
+        texts: manualTexts,
+      })
+      setTextSets(s => [data, ...s])
+      setShowManualForm(false)
+      setManualName('')
+      setManualTexts({ fr: emptyTexts(), en: emptyTexts(), es: emptyTexts() })
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Création échouée')
+    } finally {
+      setCreatingManual(false)
+    }
   }
 
   async function handleToggleAdmin(u: AdminUser) {
@@ -370,6 +418,77 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <button onClick={() => setShowManualForm(v => !v)}
+                  className="text-sm font-semibold text-gray-700 hover:text-indigo-600 flex items-center gap-2">
+                  {showManualForm ? '▲' : '▼'} Créer manuellement un set
+                </button>
+
+                {showManualForm && (
+                  <div className="mt-4 space-y-4">
+                    <div className="flex gap-3 flex-wrap">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Nom du set</label>
+                        <input value={manualName} onChange={e => setManualName(e.target.value)}
+                          placeholder="Ex: Philosophie stoïcienne"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Thème</label>
+                        <select value={manualTheme} onChange={e => setManualTheme(e.target.value)}
+                          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                          {PREDEFINED_THEMES.map(t => (
+                            <option key={t.key} value={t.key}>{t.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex gap-2 mb-3">
+                        <span className="text-xs font-medium text-gray-600 self-center">Langue :</span>
+                        {(['fr', 'en', 'es'] as const).map(l => (
+                          <button key={l} onClick={() => setManualLang(l)}
+                            className={`text-xs px-2.5 py-1 rounded-lg border ${manualLang === l ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                            {l.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-2">
+                        {manualTexts[manualLang].map((text, i) => (
+                          <div key={i}>
+                            <label className="block text-xs text-gray-400 mb-0.5">Texte {i + 1}</label>
+                            <textarea
+                              value={text}
+                              onChange={e => {
+                                const updated = [...manualTexts[manualLang]]
+                                updated[i] = e.target.value
+                                setManualTexts(prev => ({ ...prev, [manualLang]: updated }))
+                              }}
+                              rows={3}
+                              placeholder={`Texte ${i + 1} en ${manualLang.toUpperCase()}…`}
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button onClick={handleCreateManual} disabled={creatingManual}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                        {creatingManual ? 'Création…' : 'Créer le set'}
+                      </button>
+                      <button onClick={() => { setShowManualForm(false); setManualName(''); setManualTexts({ fr: emptyTexts(), en: emptyTexts(), es: emptyTexts() }) }}
+                        className="border border-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Sets list */}
@@ -392,12 +511,10 @@ export default function AdminPage() {
                         Défaut
                       </button>
                     )}
-                    {!s.isBuiltin && (
-                      <button onClick={() => handleToggleActive(s.id, s.isActive)}
-                        className="text-xs px-2.5 py-1 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50">
-                        {s.isActive ? 'Désactiver' : 'Activer'}
-                      </button>
-                    )}
+                    <button onClick={() => handleToggleActive(s.id, s.isActive)}
+                      className="text-xs px-2.5 py-1 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50">
+                      {s.isActive ? 'Désactiver' : 'Activer'}
+                    </button>
                     {!s.isBuiltin && (
                       <button onClick={() => handleDeleteSet(s.id)}
                         className="text-xs px-2.5 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50">
@@ -502,11 +619,65 @@ export default function AdminPage() {
           </div>
         ) : (
           /* Sessions tab */
+          <div className="space-y-6">
+
+          {/* ── Comparaison vocale ── */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+            <h3 className="font-semibold text-gray-800">Comparer 2 voix</h3>
+            <p className="text-xs text-gray-500">Entrez les IDs de deux sessions pour calculer la similarité cosinus entre leurs empreintes vocales.</p>
+            <div className="flex gap-3 flex-wrap">
+              <input value={compareA} onChange={e => setCompareA(e.target.value)} placeholder="Session ID A"
+                className="flex-1 min-w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input value={compareB} onChange={e => setCompareB(e.target.value)} placeholder="Session ID B"
+                className="flex-1 min-w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button onClick={handleCompare} disabled={!compareA || !compareB || compareLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {compareLoading ? 'Calcul…' : 'Comparer'}
+              </button>
+            </div>
+            {compareError && <p className="text-sm text-red-600">{compareError}</p>}
+            {compareResult && (
+              <div className={`rounded-xl p-4 border-2 ${
+                compareResult.verdict === 'same_speaker_high_confidence' ? 'bg-green-50 border-green-300' :
+                compareResult.verdict === 'same_speaker_likely' ? 'bg-blue-50 border-blue-300' :
+                compareResult.verdict === 'uncertain' ? 'bg-yellow-50 border-yellow-300' :
+                'bg-red-50 border-red-300'
+              }`}>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold font-mono text-gray-800">{compareResult.similarityPct.toFixed(1)}%</p>
+                    <p className="text-xs text-gray-500">similarité cosinus</p>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${
+                      compareResult.verdict === 'same_speaker_high_confidence' ? 'text-green-700' :
+                      compareResult.verdict === 'same_speaker_likely' ? 'text-blue-700' :
+                      compareResult.verdict === 'uncertain' ? 'text-yellow-700' :
+                      'text-red-700'
+                    }`}>{
+                      compareResult.verdict === 'same_speaker_high_confidence' ? '✓ Même locuteur — haute confiance (≥90%)' :
+                      compareResult.verdict === 'same_speaker_likely' ? '~ Même locuteur probable (≥80%)' :
+                      compareResult.verdict === 'uncertain' ? '? Incertain (≥70%)' :
+                      '✗ Locuteurs différents (<70%)'
+                    }</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Session A : {compareResult.sessionA.email} — {new Date(compareResult.sessionA.createdAt).toLocaleDateString('fr-FR')}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Session B : {compareResult.sessionB.email} — {new Date(compareResult.sessionB.createdAt).toLocaleDateString('fr-FR')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Liste des sessions ── */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {['Utilisateur', 'Statut', 'Lng', 'KYC', 'TxHash', 'Ancré le', 'Valide', 'Email', 'Audios'].map(h => (
+                  {['Utilisateur', 'Statut', 'Lng', 'KYC', 'TxHash', 'Ancré le', 'Valide', 'Email', 'Audios', 'Comparer'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{h}</th>
                   ))}
                 </tr>
@@ -517,7 +688,10 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-xs">
                       <div className="font-medium text-gray-900">{s.user.email}</div>
                       {s.user.firstName && <div className="text-gray-400">{s.user.firstName} {s.user.lastName}</div>}
-                      <div className="font-mono text-gray-300">{s.id.slice(0, 8)}</div>
+                      <div className="font-mono text-gray-400 text-[10px] cursor-pointer hover:text-indigo-500"
+                        title={s.id} onClick={() => navigator.clipboard.writeText(s.id)}>
+                        {s.id.slice(0, 8)}… <span className="text-gray-300">(copier)</span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[s.status] || ''}`}>{s.status}</span>
@@ -544,10 +718,23 @@ export default function AdminPage() {
                         ? <span className="text-green-600 font-medium">{s.audioCids.length} fichier(s)</span>
                         : <span className="text-gray-300">—</span>}
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <button onClick={() => setCompareA(s.id)}
+                          className={`text-xs px-2 py-1 rounded font-medium border transition-colors ${compareA === s.id ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                          → A
+                        </button>
+                        <button onClick={() => setCompareB(s.id)}
+                          className={`text-xs px-2 py-1 rounded font-medium border transition-colors ${compareB === s.id ? 'bg-violet-600 text-white border-violet-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                          → B
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         )}
       </div>
