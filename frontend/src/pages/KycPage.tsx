@@ -22,7 +22,7 @@ export default function KycPage() {
       const { data } = await api.post('/kyc/start')
       window.location.href = data.url
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Could not start verification')
+      setError(err.response?.data?.error || 'Impossible de démarrer la vérification')
     } finally {
       setLoading(false)
     }
@@ -38,48 +38,58 @@ export default function KycPage() {
     }
   }
 
-  const statusColors: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    APPROVED: 'bg-green-100 text-green-800',
-    REJECTED: 'bg-red-100 text-red-800',
-  }
+  const isRejected = user?.kycStatus === 'REJECTED'
+  const isPending  = user?.kycStatus === 'PENDING'
 
   return (
     <Layout>
       <div className="max-w-lg mx-auto py-12">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
           <span className="text-5xl">🪪</span>
-          <h1 className="text-2xl font-bold text-gray-900 mt-4">Identity Verification</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mt-4">Vérification d'identité</h1>
           <p className="text-gray-500 text-sm mt-2">
-            We need to verify your identity before you can start anchoring voice proofs.
-            This is a one-time process powered by Stripe Identity.
+            Vérifiez votre identité pour que vos certificats portent la mention
+            <strong> « Identité vérifiée »</strong>. Processus sécurisé par Stripe Identity.
           </p>
 
-          {user?.kycStatus && (
-            <div className={`inline-block mt-4 px-3 py-1 rounded-full text-sm font-medium ${statusColors[user.kycStatus]}`}>
-              Status: {user.kycStatus}
+          {/* Status badge */}
+          {isRejected && (
+            <div className="mt-5 bg-red-50 border border-red-200 rounded-xl p-4 text-left">
+              <p className="text-sm font-semibold text-red-800">Vérification échouée</p>
+              <p className="text-xs text-red-600 mt-1">
+                La vérification n'a pas abouti (pièce non reconnue, photo floue, document expiré…).
+                Vous pouvez relancer le processus avec une pièce d'identité valide.
+              </p>
+            </div>
+          )}
+
+          {isPending && (
+            <div className="mt-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left">
+              <p className="text-sm font-semibold text-amber-800">Vérification en cours</p>
+              <p className="text-xs text-amber-600 mt-1">
+                Si vous avez déjà complété la vérification Stripe, cliquez sur « Vérifier le statut ».
+                Sinon relancez le processus ci-dessous.
+              </p>
             </div>
           )}
 
           <div className="mt-6 space-y-3">
             {user?.kycStatus !== 'APPROVED' && (
               <button onClick={startVerification} disabled={loading}
-                className="w-full bg-brand-600 text-white py-3 rounded-xl font-medium hover:bg-brand-700 disabled:opacity-50">
-                {loading ? 'Redirecting…' : 'Start Verification'}
+                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {loading
+                  ? 'Redirection…'
+                  : isRejected
+                    ? 'Relancer la vérification'
+                    : 'Vérifier mon identité'}
               </button>
             )}
 
-            {user?.kycStatus === 'PENDING' && (
+            {isPending && (
               <button onClick={checkStatus} disabled={checking}
                 className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 disabled:opacity-50">
-                {checking ? 'Checking…' : 'Check Status'}
+                {checking ? 'Vérification…' : 'Vérifier le statut'}
               </button>
-            )}
-
-            {user?.kycStatus === 'REJECTED' && (
-              <p className="text-red-600 text-sm">
-                Verification failed. Please try again with a valid government-issued ID.
-              </p>
             )}
           </div>
 
@@ -88,13 +98,12 @@ export default function KycPage() {
           <div className="mt-4">
             <button onClick={() => navigate('/dashboard')}
               className="w-full border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
-              Passer pour l'instant — continuer sans vérifier mon identité
+              Continuer sans vérifier pour l'instant
             </button>
           </div>
 
           <div className="mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
-            <p>Your documents are processed securely by Stripe Identity.</p>
-            <p>VoxProof does not store your ID documents.</p>
+            <p>Vos documents sont traités par Stripe Identity — VoxProof ne les conserve pas.</p>
           </div>
         </div>
       </div>
