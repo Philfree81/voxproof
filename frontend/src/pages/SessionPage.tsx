@@ -489,7 +489,7 @@ export default function SessionPage() {
         {/* Session hash */}
         <div className="bg-gray-900 rounded-xl p-4">
           <p className="text-xs text-gray-400 font-semibold uppercase mb-1">Empreinte de session (SHA-256)</p>
-          <p className="text-xs text-gray-500 mb-2">Hash unique de cet enregistrement précis — ancré sur la blockchain Avalanche</p>
+          <p className="text-xs text-gray-500 mb-2">Hash unique de cet enregistrement précis — ancré sur la blockchain</p>
           <p className="text-green-400 font-mono text-xs break-all">{result.acousticHash}</p>
         </div>
 
