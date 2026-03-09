@@ -291,7 +291,7 @@ export default function Dashboard() {
 
                         {/* ── Blockchain + Radar ── */}
                         {(s.txHash || s.radarChartBase64) && (
-                          <div className="grid grid-cols-2 gap-4 items-stretch">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
 
                             {/* Colonne gauche : blockchain */}
                             {s.txHash && (

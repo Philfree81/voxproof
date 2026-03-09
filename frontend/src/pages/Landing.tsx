@@ -5,22 +5,22 @@ export default function Landing() {
     <div className="min-h-screen bg-white">
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-24 pb-16 text-center">
-        <span className="text-6xl">🎙️</span>
-        <h1 className="text-5xl font-bold text-gray-900 mt-6 leading-tight">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-16 pb-12 md:pt-24 md:pb-16 text-center">
+        <span className="text-5xl sm:text-6xl">🎙️</span>
+        <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 mt-6 leading-tight">
           Votre voix, <span className="text-brand-600">pour toujours sur la blockchain</span>
         </h1>
-        <p className="mt-5 text-xl text-gray-500 max-w-2xl mx-auto">
+        <p className="mt-5 text-base sm:text-xl text-gray-500 max-w-2xl mx-auto">
           Enregistrez, certifiez et notarisez votre empreinte vocale sur la blockchain Avalanche.
           Obtenez un certificat infalsifiable, vérifiable par tous — définitivement.
         </p>
-        <div className="mt-8 flex gap-4 justify-center">
+        <div className="mt-8 flex flex-wrap gap-4 justify-center">
           <Link to="/register"
-            className="bg-brand-600 text-white px-8 py-3 rounded-xl font-semibold text-lg hover:bg-brand-700 transition-colors">
+            className="bg-brand-600 text-white px-6 sm:px-8 py-3 rounded-xl font-semibold text-base sm:text-lg hover:bg-brand-700 transition-colors">
             Commencer gratuitement
           </Link>
           <Link to="/login"
-            className="border border-gray-300 text-gray-700 px-8 py-3 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-colors">
+            className="border border-gray-300 text-gray-700 px-6 sm:px-8 py-3 rounded-xl font-semibold text-base sm:text-lg hover:bg-gray-50 transition-colors">
             Se connecter
           </Link>
         </div>
@@ -28,7 +28,7 @@ export default function Landing() {
 
       {/* How it works */}
       <section className="max-w-5xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">Comment ça marche</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-12">Comment ça marche</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {[
             { icon: '📝', step: '1', title: 'Inscription', desc: 'Créez votre compte avec votre email et un mot de passe' },
@@ -51,7 +51,7 @@ export default function Landing() {
       {/* Pricing */}
       <section className="bg-gray-50 py-16">
         <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-4">Tarifs simples</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-4">Tarifs simples</h2>
           <p className="text-center text-gray-500 mb-12">Un achat = une certification vocale complète ancrée sur la blockchain</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <div className="bg-white rounded-2xl border border-gray-200 p-8">

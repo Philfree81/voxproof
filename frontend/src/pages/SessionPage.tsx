@@ -535,7 +535,7 @@ export default function SessionPage() {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-3">
             <p className="text-xs font-semibold text-gray-500 mb-2 text-center">Profil acoustique radar</p>
             <img src={`data:image/png;base64,${result.radarChart}`} alt="Radar" className="w-full" />
