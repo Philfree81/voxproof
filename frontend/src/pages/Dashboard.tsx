@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useAuthStore } from '../store/authStore'
 import { VoiceSession, SpectrogramMetrics } from '../types'
@@ -55,7 +55,6 @@ function formatDate(iso?: string | null) {
 
 export default function Dashboard() {
   const { user, fetchMe } = useAuthStore()
-  const navigate = useNavigate()
   const [sessions, setSessions] = useState<VoiceSession[]>([])
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState<string | null>(null)
@@ -153,21 +152,6 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Optional identity verification nudge */}
-        {!user?.kycVerificationId && (
-          <div className="bg-th-accent-subtle border border-th-border-light rounded-xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-th-accent">Renforcez votre certificat</p>
-              <p className="text-xs text-th-text-muted mt-0.5">
-                Ajoutez une vérification d'identité Stripe (document + selfie) pour obtenir la mention <strong>« Identité vérifiée »</strong> sur vos certificats.
-              </p>
-            </div>
-            <button onClick={() => navigate('/kyc')}
-              className="ml-4 shrink-0 text-sm bg-th-accent text-white px-3 py-1.5 rounded-lg hover:bg-th-accent-hover">
-              Vérifier
-            </button>
-          </div>
-        )}
 
         {/* Sessions list */}
         <div>
