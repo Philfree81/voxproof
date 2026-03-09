@@ -25,7 +25,7 @@ contract VoxProof is Ownable, Pausable, ReentrancyGuard {
 
     struct Proof {
         uint256 id;
-        address owner;        // Adresse du wallet signataire (Adelray SAS — deployer)
+        address owner;        // VoxProof deployer wallet — signs on behalf of end users
         bytes32 audioHash;    // SHA-256 des features ComParE — unique par session
         bytes32 voiceHash;    // SHA-256 du d-vector GE2E — identité biométrique stable
         string  title;        // Libellé générique (ex: "VoxProof Vocal Signature")
