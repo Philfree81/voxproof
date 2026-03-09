@@ -96,6 +96,24 @@ export default function CgvPage() {
         <p className="text-xs text-th-text-muted text-center">
           Pour toute question : <a href="mailto:contact@adelray.com" className="text-th-accent hover:underline">contact@adelray.com</a>
         </p>
+
+        {/* Mentions légales */}
+        <section id="mentions" className="bg-panel border border-th-border rounded-2xl p-6 space-y-3 text-sm text-th-text-secondary leading-relaxed scroll-mt-20">
+          <h2 className="text-base font-bold text-th-text-primary">Mentions légales</h2>
+          <div className="space-y-2 text-xs">
+            <p><strong>Éditeur :</strong> Adelray SAS — Société par Actions Simplifiée<br />
+            RCS Paris 515 130 391 — Siège social : 149 avenue du Maine, 75014 Paris, France<br />
+            Email : contact@adelray.com</p>
+            <p><strong>Directeur de la publication :</strong> Le représentant légal d'Adelray SAS</p>
+            <p><strong>Hébergeur :</strong> OVH SAS — 2 rue Kellermann, 59100 Roubaix, France<br />
+            SAS au capital de 10 069 020 € — RCS Lille Métropole 424 761 419</p>
+            <p><strong>Traitement des données personnelles :</strong> Adelray SAS, contact@adelray.com<br />
+            Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et d'effacement de vos données personnelles, exercé à l'adresse ci-dessus.</p>
+            <p><strong>Médiation :</strong> CM2C — Centre de Médiation de la Consommation de Conciliateurs de France<br />
+            14 rue Saint Jean, 75017 Paris — <a href="https://www.cm2c.net" target="_blank" rel="noopener noreferrer" className="text-th-accent hover:underline">www.cm2c.net</a></p>
+            <p><strong>Propriété intellectuelle :</strong> L'ensemble du contenu de ce site (textes, algorithmes, marque VoxProof) est la propriété d'Adelray SAS. Toute reproduction sans autorisation est interdite.</p>
+          </div>
+        </section>
       </div>
     </Layout>
   )
