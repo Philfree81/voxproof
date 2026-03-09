@@ -1,5 +1,17 @@
 import { ethers } from 'ethers'
 import { env } from '../config/env'
+import twilio from 'twilio'
+
+function sendRpcAlert(message: string) {
+  console.error(`[BLOCKCHAIN ERROR] ${message}`)
+  if (!env.twilioAccountSid || !env.twilioAuthToken || !env.notifyWhatsappTo) return
+  const client = twilio(env.twilioAccountSid, env.twilioAuthToken)
+  client.messages.create({
+    from: env.twilioWhatsappFrom,
+    to: env.notifyWhatsappTo,
+    body: `🚨 VoxProof Blockchain\n${message}`,
+  }).catch(err => console.error('[Twilio] Failed to send alert:', err))
+}
 
 const ABI = [
   'function anchorProof(bytes32 audioHash, bytes32 voiceHash, string calldata ipfsCid, string calldata title) external returns (uint256)',
@@ -39,12 +51,22 @@ export async function anchorHashOnChain(
     Buffer.from(voiceHashHex.replace('0x', ''), 'hex')
   ) as `0x${string}`
 
-  const tx = await contract.anchorProof(hashBytes, voiceHashBytes, sessionId, 'VoxProof Vocal Signature')
-  const receipt = await tx.wait()
-
-  return {
-    txHash: receipt.hash,
-    blockNumber: receipt.blockNumber,
+  try {
+    const tx = await contract.anchorProof(hashBytes, voiceHashBytes, sessionId, 'VoxProof Vocal Signature')
+    const receipt = await tx.wait()
+    return {
+      txHash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+    }
+  } catch (err: any) {
+    const msg = err?.message || String(err)
+    const is429 = msg.includes('429') || msg.toLowerCase().includes('too many requests') || msg.toLowerCase().includes('rate limit')
+    if (is429) {
+      sendRpcAlert(`RPC 429 Too Many Requests\nEndpoint: ${env.blockchainRpcUrl}\nSession: ${sessionId}\nSolution: changer BLOCKCHAIN_RPC_URL`)
+    } else {
+      sendRpcAlert(`Ancrage échoué\nSession: ${sessionId}\nErreur: ${msg.slice(0, 200)}`)
+    }
+    throw err
   }
 }
 
