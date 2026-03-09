@@ -111,7 +111,7 @@ export default function Navbar() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(v => !v)}
-                className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl border border-th-border bg-surface hover:bg-surface-2 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-2 transition-colors"
               >
                 {/* Avatar initiale */}
                 <span className="w-6 h-6 rounded-full bg-th-accent text-white text-xs font-bold flex items-center justify-center">
