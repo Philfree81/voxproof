@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
+import { useThemeStore } from '../../store/themeStore'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
@@ -19,6 +20,7 @@ export default function LoginForm() {
       const { data } = await api.post('/auth/login', { email, password })
       setToken(data.token)
       setUser(data.user)
+      if (data.user.theme) useThemeStore.getState().applyUserTheme(data.user.theme)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed')

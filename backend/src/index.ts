@@ -11,6 +11,7 @@ import sessionRoutes from './routes/sessions'
 import adminRoutes from './routes/admin'
 import { startUnpinScheduler } from './services/unpinScheduler'
 import { seedBuiltinTextSets } from './services/seedBuiltinSets'
+import { prisma } from './config/database'
 
 const app = express()
 
@@ -37,6 +38,12 @@ app.use('/api/payments', paymentRoutes)
 app.use('/api/sessions', sessionRoutes)
 app.use('/api/admin', adminRoutes)
 
+// ─── Public config (default theme) ──────────────────────
+app.get('/api/config', async (_req, res) => {
+  const row = await prisma.appConfig.findUnique({ where: { key: 'default_theme' } })
+  res.json({ defaultTheme: row?.value ?? 'classic' })
+})
+
 // ─── Health check ───────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))
 
@@ -53,6 +60,11 @@ app.listen(env.port, () => {
   console.log(`VoxProof API running on port ${env.port} [${env.nodeEnv}]`)
   startUnpinScheduler()
   seedBuiltinTextSets().catch(err => console.error('[Seed] Built-in sets error:', err))
+  prisma.appConfig.upsert({
+    where: { key: 'default_theme' },
+    update: {},
+    create: { key: 'default_theme', value: 'classic' },
+  }).catch(() => {})
 })
 
 export default app

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { User } from '../types'
 import api from '../services/api'
+import { useThemeStore } from './themeStore'
 
 interface AuthState {
   user: User | null
@@ -34,6 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await api.get('/auth/me')
       set({ user: data })
+      if (data.theme) useThemeStore.getState().applyUserTheme(data.theme)
     } finally {
       set({ loading: false })
     }

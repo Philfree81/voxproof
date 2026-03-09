@@ -20,6 +20,7 @@ export interface User {
   kycStatus: KycStatus
   isAdmin: boolean
   emailVerified: boolean
+  theme?: string
   createdAt: string
 }
 
@@ -55,6 +56,7 @@ export interface VoiceSession {
 }
 
 export interface AdminUser extends User {
+  theme?: string
   purchases: Purchase[]
   sessions: { id: string; status: SessionStatus; createdAt: string }[]
 }

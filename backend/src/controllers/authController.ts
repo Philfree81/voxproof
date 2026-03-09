@@ -51,7 +51,7 @@ export async function register(req: Request, res: Response) {
       lastName,
       stripeCustomerId,
     },
-    select: { id: true, email: true, firstName: true, lastName: true, kycStatus: true },
+    select: { id: true, email: true, firstName: true, lastName: true, kycStatus: true, theme: true },
   })
 
   const token = signToken(user.id)
@@ -100,6 +100,7 @@ export async function login(req: Request, res: Response) {
       firstName: user.firstName,
       lastName: user.lastName,
       kycStatus: user.kycStatus,
+      theme: user.theme,
     },
   })
 }
@@ -156,11 +157,21 @@ export async function getMe(req: Request & { userId?: string }, res: Response) {
     where: { id: req.userId },
     select: {
       id: true, email: true, firstName: true, lastName: true,
-      kycStatus: true, emailVerified: true,
+      kycStatus: true, emailVerified: true, theme: true,
       createdAt: true, purchases: true,
     },
   })
   if (!user) return res.status(404).json({ error: 'User not found' })
   return res.json(user)
+}
+
+export async function updateTheme(req: Request & { userId?: string }, res: Response) {
+  const { theme } = req.body
+  const valid = ['classic', 'futuriste', 'blue', 'sobre']
+  if (!theme || !valid.includes(theme)) {
+    return res.status(400).json({ error: 'Invalid theme' })
+  }
+  await prisma.user.update({ where: { id: req.userId }, data: { theme } })
+  return res.json({ theme })
 }
 

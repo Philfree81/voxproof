@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from './store/authStore'
+import { useThemeStore } from './store/themeStore'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import KycPage from './pages/KycPage'
@@ -16,6 +18,9 @@ function PrivateRoute({ children }: { children: JSX.Element }) {
 }
 
 export default function App() {
+  const fetchDefault = useThemeStore(s => s.fetchDefault)
+  useEffect(() => { fetchDefault() }, [])
+
   return (
     <BrowserRouter>
       <Routes>

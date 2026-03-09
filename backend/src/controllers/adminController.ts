@@ -4,6 +4,28 @@ import { AuthRequest } from '../middleware/auth'
 import Anthropic from '@anthropic-ai/sdk'
 import { env } from '../config/env'
 
+// ─── App Config ───────────────────────────────────────────────────────────────
+
+const VALID_THEMES = ['classic', 'futuriste', 'blue', 'sobre']
+
+export async function getConfig(_req: AuthRequest, res: Response) {
+  const row = await prisma.appConfig.findUnique({ where: { key: 'default_theme' } })
+  return res.json({ defaultTheme: row?.value ?? 'classic' })
+}
+
+export async function setConfig(req: AuthRequest, res: Response) {
+  const { defaultTheme } = req.body
+  if (!defaultTheme || !VALID_THEMES.includes(defaultTheme)) {
+    return res.status(400).json({ error: 'Invalid theme' })
+  }
+  await prisma.appConfig.upsert({
+    where: { key: 'default_theme' },
+    update: { value: defaultTheme },
+    create: { key: 'default_theme', value: defaultTheme },
+  })
+  return res.json({ defaultTheme })
+}
+
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export async function listUsers(_req: AuthRequest, res: Response) {
@@ -16,6 +38,7 @@ export async function listUsers(_req: AuthRequest, res: Response) {
       lastName: true,
       kycStatus: true,
       isAdmin: true,
+      theme: true,
       createdAt: true,
       purchases: {
         select: { id: true, productType: true, usedAt: true, validUntil: true, createdAt: true },

@@ -3,8 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../services/api'
 import type { AdminUser, Purchase, KycStatus } from '../types'
+import type { Theme } from '../store/themeStore'
 
-type Tab = 'users' | 'sessions' | 'texts' | 'activity'
+type Tab = 'users' | 'sessions' | 'texts' | 'activity' | 'config'
+
+const THEME_LABELS: Record<string, { label: string; colors: [string, string] }> = {
+  classic:   { label: 'Classic',       colors: ['#4f46e5', '#f9fafb'] },
+  futuriste: { label: 'Futuriste',     colors: ['#00e5ff', '#05070f'] },
+  blue:      { label: 'VoxProof Blue', colors: ['#1e6fcc', '#deeeff'] },
+  sobre:     { label: 'Sobre',         colors: ['#2c3e6b', '#c9a84c'] },
+}
+
+function ThemeBadge({ theme }: { theme?: string }) {
+  const t = theme && THEME_LABELS[theme] ? THEME_LABELS[theme] : THEME_LABELS['classic']
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-th-text-muted">
+      <span className="flex gap-0.5">
+        <span className="w-2.5 h-2.5 rounded-full border border-black/10" style={{ background: t.colors[0] }} />
+        <span className="w-2.5 h-2.5 rounded-full border border-black/10" style={{ background: t.colors[1] }} />
+      </span>
+      {t.label}
+    </span>
+  )
+}
 
 interface ActivityLog {
   id: string
@@ -80,6 +101,19 @@ export default function AdminPage() {
   const [editKyc, setEditKyc] = useState<KycStatus>('PENDING')
   const [saving, setSaving] = useState(false)
 
+  // Config tab
+  const [defaultTheme, setDefaultTheme] = useState<Theme>('classic')
+  const [savingConfig, setSavingConfig] = useState(false)
+
+  async function handleSaveConfig() {
+    setSavingConfig(true)
+    try {
+      await api.put('/admin/config', { defaultTheme })
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
   // Compare tab
   const [compareA, setCompareA] = useState('')
   const [compareB, setCompareB] = useState('')
@@ -127,8 +161,13 @@ export default function AdminPage() {
   }, [user, navigate])
 
   useEffect(() => {
+    api.get('/admin/config').then(r => setDefaultTheme(r.data.defaultTheme)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     setLoading(true)
     let req: Promise<any>
+    if (tab === 'config') { setLoading(false); return }
     if (tab === 'users') {
       req = api.get('/admin/users').then(r => { setUsers(r.data); setSessions([]) })
     } else if (tab === 'sessions') {
@@ -278,6 +317,10 @@ export default function AdminPage() {
             className={`py-3 text-sm font-medium border-b-2 transition-colors ${tab === 'activity' ? 'border-indigo-600 text-th-accent' : 'border-transparent text-th-text-muted hover:text-th-text-secondary'}`}>
             Activité{activityLogs.length ? ` (${activityLogs.length})` : ''}
           </button>
+          <button onClick={() => setTab('config')}
+            className={`py-3 text-sm font-medium border-b-2 transition-colors ${tab === 'config' ? 'border-indigo-600 text-th-accent' : 'border-transparent text-th-text-muted hover:text-th-text-secondary'}`}>
+            Config
+          </button>
         </div>
       </div>
 
@@ -298,6 +341,7 @@ export default function AdminPage() {
                       {u.firstName && <span className="text-th-text-muted text-sm">{u.firstName} {u.lastName}</span>}
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${KYC_BADGE[u.kycStatus]}`}>{u.kycStatus}</span>
                       {u.isAdmin && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">ADMIN</span>}
+                      <ThemeBadge theme={u.theme} />
                     </div>
                     <p className="text-xs text-th-text-muted mt-1">
                       Inscrit le {fmt(u.createdAt)} · {u.sessions.length} session(s)
@@ -615,6 +659,42 @@ export default function AdminPage() {
               {activityLogs.filter(l => !activityFilter || l.action === activityFilter).length === 0 && (
                 <p className="text-center text-sm text-th-text-muted py-8">Aucune activité enregistrée.</p>
               )}
+            </div>
+          </div>
+        ) : tab === 'config' ? (
+          <div className="max-w-lg space-y-8">
+            <div className="bg-panel rounded-2xl border border-th-border p-6">
+              <h2 className="text-base font-bold text-th-text-primary mb-1">Thème par défaut</h2>
+              <p className="text-sm text-th-text-muted mb-5">
+                Appliqué aux visiteurs qui n'ont pas encore choisi de thème.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.entries(THEME_LABELS) as [Theme, typeof THEME_LABELS[string]][]).map(([id, t]) => (
+                  <button
+                    key={id}
+                    onClick={() => setDefaultTheme(id)}
+                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-colors text-left ${
+                      defaultTheme === id
+                        ? 'border-th-accent bg-th-accent-subtle text-th-accent'
+                        : 'border-th-border text-th-text-secondary hover:bg-surface-2'
+                    }`}
+                  >
+                    <span className="flex gap-0.5 shrink-0">
+                      <span className="w-3 h-3 rounded-full border border-black/10" style={{ background: t.colors[0] }} />
+                      <span className="w-3 h-3 rounded-full border border-black/10" style={{ background: t.colors[1] }} />
+                    </span>
+                    {t.label}
+                    {defaultTheme === id && <span className="ml-auto text-xs">✓</span>}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleSaveConfig}
+                disabled={savingConfig}
+                className="mt-5 w-full bg-th-accent text-white py-2.5 rounded-xl font-medium hover:bg-th-accent-hover disabled:opacity-50 transition-colors text-sm"
+              >
+                {savingConfig ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
             </div>
           </div>
         ) : (

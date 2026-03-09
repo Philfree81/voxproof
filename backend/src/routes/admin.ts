@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import {
+  getConfig, setConfig,
   listUsers, updateUser, deleteUser,
   addCredit, deleteCredit,
   listSessions, compareSessions,
@@ -11,6 +12,9 @@ import {
 
 const router = Router()
 router.use(requireAuth, requireAdmin)
+
+router.get('/config', getConfig)
+router.put('/config', setConfig)
 
 router.get('/users', listUsers)
 router.patch('/users/:id', updateUser)
