@@ -73,28 +73,28 @@ export async function stripeWebhook(req: Request, res: Response) {
     const isPaid = session.payment_status === 'paid' || session.mode === 'subscription'
 
     if (userId && isPaid) {
-      const isLifetime = priceId === env.stripePriceLifetime
-      const validUntil = isLifetime
-        ? null
-        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      const isPack5 = priceId === env.stripePriceLifetime
+      const qty = isPack5 ? 5 : 1
+      const productType = isPack5 ? 'LIFETIME' : 'ANNUAL'
 
-      await prisma.purchase.create({
-        data: {
+      // Create one Purchase record per credit (pack 5 → 5 records)
+      await prisma.purchase.createMany({
+        data: Array.from({ length: qty }, () => ({
           userId,
           stripePaymentIntentId: session.payment_intent ?? null,
           stripePriceId: priceId,
-          productType: isLifetime ? 'LIFETIME' : 'ANNUAL',
-          validUntil,
-        },
+          productType,
+          validUntil: null, // no time limit
+        })),
       })
-      console.log('[Webhook] Purchase créé pour userId', userId)
+      console.log(`[Webhook] ${qty} Purchase(s) créé(s) pour userId`, userId)
 
       // WhatsApp notification (non-blocking)
       const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
       if (user) {
-        const label = isLifetime ? 'LIFETIME' : 'ANNUAL'
+        const label = isPack5 ? 'PACK_5' : 'SINGLE'
         notifyNewPurchase(user.email, label).catch(() => {})
-        logActivity('PURCHASE', { userId, metadata: { email: user.email, productType: label, priceId } })
+        logActivity('PURCHASE', { userId, metadata: { email: user.email, productType: label, priceId, qty } })
       }
     } else {
       console.warn('[Webhook] Ignoré — userId:', userId, 'isPaid:', isPaid)

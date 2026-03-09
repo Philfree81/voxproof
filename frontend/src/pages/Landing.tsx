@@ -80,12 +80,12 @@ export default function Landing() {
       <section className="bg-surface-2 py-16">
         <div className="max-w-4xl mx-auto px-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-th-text-primary text-center mb-4">Tarifs simples</h2>
-          <p className="text-center text-th-text-muted mb-12">Un achat = une certification vocale complète ancrée sur la blockchain</p>
+          <p className="text-center text-th-text-muted mb-12">Chaque certification est ancrée définitivement sur la blockchain — aucun abonnement</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <div className="bg-panel rounded-2xl border border-th-border p-8">
-              <h3 className="font-bold text-xl text-th-text-primary">Annuel</h3>
-              <p className="text-4xl font-bold text-th-text-primary mt-3">15 €<span className="text-lg text-th-text-muted">/an</span></p>
-              <p className="text-sm text-th-text-muted mt-2">Renouvellement conseillé chaque année pour maintenir une empreinte à jour</p>
+              <h3 className="font-bold text-xl text-th-text-primary">1 certification</h3>
+              <p className="text-4xl font-bold text-th-text-primary mt-3">14 €</p>
+              <p className="text-sm text-th-text-muted mt-2">Pour certifier votre voix une fois, avec preuve blockchain permanente</p>
               <ul className="mt-6 space-y-2 text-sm text-th-text-secondary">
                 <li>✓ 1 certification vocale complète</li>
                 <li>✓ Certificat PDF officiel</li>
@@ -97,14 +97,17 @@ export default function Landing() {
               </Link>
             </div>
             <div className="bg-th-accent rounded-2xl p-8 text-white">
-              <h3 className="font-bold text-xl">À vie</h3>
-              <p className="text-4xl font-bold mt-3">65 €<span className="text-lg text-white/60"> une fois</span></p>
-              <p className="text-sm text-white/70 mt-2">Idéal pour une preuve d'antériorité ou une archive définitive</p>
+              <div className="flex items-start justify-between">
+                <h3 className="font-bold text-xl">Pack 5 certifications</h3>
+                <span className="text-xs bg-white/20 text-white px-2 py-1 rounded-full font-medium">−19 %</span>
+              </div>
+              <p className="text-4xl font-bold mt-3">57 €<span className="text-lg text-white/60"> soit 11,40 €/cert.</span></p>
+              <p className="text-sm text-white/70 mt-2">Pour plusieurs certifications ou plusieurs membres d'une équipe</p>
               <ul className="mt-6 space-y-2 text-sm text-white/80">
-                <li>✓ 1 certification vocale complète</li>
-                <li>✓ Validité permanente sur la blockchain</li>
-                <li>✓ Certificat PDF officiel</li>
-                <li>✓ Aucun renouvellement requis</li>
+                <li>✓ 5 certifications vocales complètes</li>
+                <li>✓ Certificats PDF officiels</li>
+                <li>✓ Ancrage blockchain Avalanche</li>
+                <li>✓ Crédits utilisables à votre rythme</li>
               </ul>
               <Link to="/register" className="block mt-6 text-center bg-white text-th-accent py-2.5 rounded-xl font-medium hover:opacity-90 transition-opacity">
                 Commencer

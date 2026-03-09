@@ -488,7 +488,7 @@ export default function SessionPage() {
           <div className="bg-th-accent-subtle border border-th-border rounded-xl p-5 space-y-4">
             <div className="text-center">
               <p className="text-sm font-semibold text-indigo-900">Choisissez votre formule</p>
-              <p className="text-xs text-th-accent mt-1">Un achat = une signature vocale ancrée sur la blockchain</p>
+              <p className="text-xs text-th-accent mt-1">Certification permanente sur la blockchain — aucun abonnement</p>
             </div>
             {purchasing ? (
               <div className="flex flex-col items-center gap-2 py-2">
@@ -511,16 +511,16 @@ export default function SessionPage() {
                 <button
                   onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_ANNUAL)}
                   className="flex flex-col items-center gap-1 bg-panel border-2 border-indigo-300 hover:border-indigo-600 rounded-xl p-4 transition-colors">
-                  <span className="text-lg font-bold text-th-accent">1 an</span>
-                  <span className="text-xs text-th-text-muted">Accès 12 mois</span>
-                  <span className="text-sm font-semibold text-gray-800 mt-1">9 €</span>
+                  <span className="text-lg font-bold text-th-accent">1 certification</span>
+                  <span className="text-xs text-th-text-muted">Ancrage permanent</span>
+                  <span className="text-sm font-semibold text-gray-800 mt-1">14 €</span>
                 </button>
                 <button
                   onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_LIFETIME)}
                   className="flex flex-col items-center gap-1 bg-th-accent hover:bg-th-accent-hover rounded-xl p-4 transition-colors">
-                  <span className="text-lg font-bold text-white">À vie</span>
-                  <span className="text-xs text-indigo-200">Accès permanent</span>
-                  <span className="text-sm font-semibold text-white mt-1">29 €</span>
+                  <span className="text-lg font-bold text-white">Pack 5 certs</span>
+                  <span className="text-xs text-indigo-200">11,40 € / certification</span>
+                  <span className="text-sm font-semibold text-white mt-1">57 €</span>
                 </button>
               </div>
             )}
