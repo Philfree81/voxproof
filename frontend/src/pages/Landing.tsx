@@ -1,4 +1,17 @@
 import { Link } from 'react-router-dom'
+import { useThemeStore } from '../store/themeStore'
+import LogoSobre from '../components/shared/LogoSobre'
+
+function HeroLogo() {
+  const { theme } = useThemeStore()
+  if (theme === 'blue' || theme === 'futuriste') {
+    return <img src="/logo.jpeg" alt="VoxProof" className="h-20 w-auto mx-auto" />
+  }
+  if (theme === 'sobre') {
+    return <LogoSobre className="h-16 w-auto mx-auto" />
+  }
+  return <span className="text-5xl sm:text-6xl">🎙️</span>
+}
 
 export default function Landing() {
   return (
@@ -6,7 +19,7 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-16 pb-12 md:pt-24 md:pb-16 text-center">
-        <span className="text-5xl sm:text-6xl">🎙️</span>
+        <HeroLogo />
         <h1 className="text-3xl sm:text-5xl font-bold text-th-text-primary mt-6 leading-tight">
           Votre voix, <span className="text-th-accent">pour toujours sur la blockchain</span>
         </h1>

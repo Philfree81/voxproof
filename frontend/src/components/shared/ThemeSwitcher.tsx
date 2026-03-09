@@ -1,12 +1,28 @@
 import { useState } from 'react'
 import { useThemeStore, Theme } from '../../store/themeStore'
 
-const THEMES: { id: Theme; label: string; icon: string }[] = [
-  { id: 'classic',   label: 'Classic',      icon: '☀️' },
-  { id: 'futuriste', label: 'Futuriste',    icon: '⚡' },
-  { id: 'blue',      label: 'VoxProof Blue', icon: '🔷' },
-  { id: 'sobre',     label: 'Sobre',        icon: '⚖️' },
+type ThemeDef = {
+  id: Theme
+  label: string
+  colors: [string, string]
+}
+
+const THEMES: ThemeDef[] = [
+  { id: 'classic',   label: 'Classic',       colors: ['#4f46e5', '#f9fafb'] },
+  { id: 'futuriste', label: 'Futuriste',     colors: ['#00e5ff', '#05070f'] },
+  { id: 'blue',      label: 'VoxProof Blue', colors: ['#1e6fcc', '#deeeff'] },
+  { id: 'sobre',     label: 'Sobre',         colors: ['#2c3e6b', '#c9a84c'] },
 ]
+
+function Swatch({ colors, size = 3 }: { colors: [string, string]; size?: number }) {
+  const px = `${size * 4}px`
+  return (
+    <span className="flex gap-0.5 shrink-0">
+      <span className="rounded-full border border-black/10" style={{ width: px, height: px, background: colors[0] }} />
+      <span className="rounded-full border border-black/10" style={{ width: px, height: px, background: colors[1] }} />
+    </span>
+  )
+}
 
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useThemeStore()
@@ -17,10 +33,10 @@ export default function ThemeSwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-th-text-secondary hover:text-th-text-primary hover:bg-surface-2 transition-colors"
+        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-th-text-secondary hover:text-th-text-primary hover:bg-surface-2 transition-colors"
         aria-label="Changer de thème"
       >
-        <span className="text-base">{current.icon}</span>
+        <Swatch colors={current.colors} size={3} />
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -29,7 +45,7 @@ export default function ThemeSwitcher() {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 w-44 bg-panel border border-th-border rounded-xl shadow-lg z-20 overflow-hidden">
+          <div className="absolute right-0 mt-1 w-48 bg-panel border border-th-border rounded-xl shadow-lg z-20 overflow-hidden">
             {THEMES.map(t => (
               <button
                 key={t.id}
@@ -40,9 +56,9 @@ export default function ThemeSwitcher() {
                     : 'text-th-text-secondary hover:bg-surface-2 hover:text-th-text-primary'
                 }`}
               >
-                <span>{t.icon}</span>
+                <Swatch colors={t.colors} size={3} />
                 <span>{t.label}</span>
-                {theme === t.id && <span className="ml-auto text-xs opacity-70">✓</span>}
+                {theme === t.id && <span className="ml-auto text-xs opacity-50">✓</span>}
               </button>
             ))}
           </div>
