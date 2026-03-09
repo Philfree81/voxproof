@@ -20,7 +20,12 @@ function HeroLogo() {
   if (theme === 'sobre') {
     return <LogoSobre className="h-16 w-auto mx-auto" />
   }
-  return <span className="text-5xl sm:text-6xl">🎙️</span>
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-5xl sm:text-6xl">🎙️</span>
+      <span className="text-3xl sm:text-4xl font-bold text-th-text-primary tracking-tight">VoxProof</span>
+    </div>
+  )
 }
 
 export default function Landing() {
