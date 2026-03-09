@@ -16,9 +16,31 @@ export default {
           800: '#302eaa',
           900: '#2c2c87',
         },
+        // ── Theme tokens ──────────────────────────────
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+          2: 'var(--color-surface-2)',
+        },
+        panel: 'var(--color-panel)',
+        'th-border': {
+          DEFAULT: 'var(--color-border)',
+          light: 'var(--color-border-light)',
+        },
+        'th-text': {
+          primary:   'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          muted:     'var(--color-text-muted)',
+        },
+        'th-accent': {
+          DEFAULT: 'var(--color-accent)',
+          hover:   'var(--color-accent-hover)',
+          subtle:  'var(--color-accent-subtle)',
+          2:       'var(--color-accent-2)',
+        },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-main)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'Courier New', 'monospace'],
       },
     },
   },

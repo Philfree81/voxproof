@@ -1,0 +1,67 @@
+/* ── CLASSIC (default) ────────────────────────────────── */
+:root,
+html.theme-classic {
+  --color-surface:        #ffffff;
+  --color-surface-2:      #f9fafb;
+  --color-panel:          #ffffff;
+  --color-border:         #e5e7eb;
+  --color-border-light:   #f3f4f6;
+  --color-text-primary:   #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-muted:     #9ca3af;
+  --color-accent:         #4f46e5;
+  --color-accent-hover:   #4338ca;
+  --color-accent-subtle:  #eef2ff;
+  --color-accent-2:       #818cf8;
+  --font-main: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Courier New', monospace;
+}
+
+/* ── FUTURISTE ────────────────────────────────────────── */
+html.theme-futuriste {
+  --color-surface:        #05070f;
+  --color-surface-2:      #0d1325;
+  --color-panel:          #0d1325;
+  --color-border:         #1a2a4a;
+  --color-border-light:   #12203a;
+  --color-text-primary:   #e8f4ff;
+  --color-text-secondary: #7090b0;
+  --color-text-muted:     #4a6080;
+  --color-accent:         #00e5ff;
+  --color-accent-hover:   #00b8d4;
+  --color-accent-subtle:  rgba(0, 229, 255, 0.08);
+  --color-accent-2:       #7b2fff;
+  --font-main: 'Exo 2', system-ui, sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+html.theme-futuriste h1,
+html.theme-futuriste h2 {
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* ── VOXPROOF BLUE ────────────────────────────────────── */
+html.theme-blue {
+  --color-surface:        #060d1a;
+  --color-surface-2:      #0c1a2e;
+  --color-panel:          #0f2040;
+  --color-border:         #1a3a6a;
+  --color-border-light:   #122a50;
+  --color-text-primary:   #dce8ff;
+  --color-text-secondary: #7090b0;
+  --color-text-muted:     #4a6080;
+  --color-accent:         #1e88e5;
+  --color-accent-hover:   #1565c0;
+  --color-accent-subtle:  rgba(30, 136, 229, 0.12);
+  --color-accent-2:       #90caf9;
+  --font-main: 'Syne', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+}
+
+html.theme-blue h1,
+html.theme-blue h2 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}

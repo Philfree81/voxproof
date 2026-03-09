@@ -44,19 +44,18 @@ export default function KycPage() {
   return (
     <Layout>
       <div className="max-w-lg mx-auto py-12">
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div className="bg-panel rounded-2xl border border-th-border p-8 text-center">
           <span className="text-5xl">🪪</span>
-          <h1 className="text-2xl font-bold text-gray-900 mt-4">Vérification d'identité</h1>
-          <p className="text-gray-500 text-sm mt-2">
+          <h1 className="text-2xl font-bold text-th-text-primary mt-4">Vérification d'identité</h1>
+          <p className="text-th-text-muted text-sm mt-2">
             Vérifiez votre identité pour que vos certificats portent la mention
-            <strong> « Identité vérifiée »</strong>. Processus sécurisé par Stripe Identity.
+            <strong className="text-th-text-secondary"> « Identité vérifiée »</strong>. Processus sécurisé par Stripe Identity.
           </p>
 
-          {/* Status badge */}
           {isRejected && (
-            <div className="mt-5 bg-red-50 border border-red-200 rounded-xl p-4 text-left">
-              <p className="text-sm font-semibold text-red-800">Vérification échouée</p>
-              <p className="text-xs text-red-600 mt-1">
+            <div className="mt-5 bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-left">
+              <p className="text-sm font-semibold text-red-400">Vérification échouée</p>
+              <p className="text-xs text-red-400/80 mt-1">
                 La vérification n'a pas abouti (pièce non reconnue, photo floue, document expiré…).
                 Vous pouvez relancer le processus avec une pièce d'identité valide.
               </p>
@@ -76,7 +75,7 @@ export default function KycPage() {
           <div className="mt-6 space-y-3">
             {user?.kycStatus !== 'APPROVED' && (
               <button onClick={startVerification} disabled={loading}
-                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50">
+                className="w-full bg-th-accent text-white py-3 rounded-xl font-medium hover:bg-th-accent-hover disabled:opacity-50 transition-colors">
                 {loading
                   ? 'Redirection…'
                   : isRejected
@@ -87,22 +86,22 @@ export default function KycPage() {
 
             {isPending && (
               <button onClick={checkStatus} disabled={checking}
-                className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 disabled:opacity-50">
+                className="w-full border border-th-border text-th-text-secondary py-3 rounded-xl font-medium hover:bg-surface-2 disabled:opacity-50 transition-colors">
                 {checking ? 'Vérification…' : 'Vérifier le statut'}
               </button>
             )}
           </div>
 
-          {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
+          {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
 
           <div className="mt-4">
             <button onClick={() => navigate('/dashboard')}
-              className="w-full border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+              className="w-full border border-th-border text-th-text-secondary py-2.5 rounded-xl text-sm font-medium hover:bg-surface-2 transition-colors">
               Continuer sans vérifier pour l'instant
             </button>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
+          <div className="mt-6 pt-6 border-t border-th-border-light text-xs text-th-text-muted">
             <p>Vos documents sont traités par Stripe Identity — VoxProof ne les conserve pas.</p>
           </div>
         </div>
