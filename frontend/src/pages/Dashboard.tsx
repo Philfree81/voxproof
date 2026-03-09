@@ -59,6 +59,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [credits, setCredits] = useState<number | null>(null)
+  const [purchasing, setPurchasing] = useState(false)
 
   useEffect(() => {
     if (!user) fetchMe()
@@ -70,7 +72,31 @@ export default function Dashboard() {
       .then(r => setSessions(r.data))
       .catch(() => {})
       .finally(() => setLoading(false))
+    api.get('/payments/credits')
+      .then(r => setCredits(r.data.available))
+      .catch(() => {})
   }, [user])
+
+  async function purchase(priceId: string) {
+    setPurchasing(true)
+    const stripeTab = window.open('', '_blank')
+    try {
+      const { data } = await api.post('/payments/purchase', { priceId })
+      if (stripeTab) stripeTab.location.href = data.url
+      else window.location.href = data.url
+      const deadline = Date.now() + 10 * 60 * 1000
+      const interval = setInterval(async () => {
+        if (Date.now() > deadline) { clearInterval(interval); setPurchasing(false); return }
+        try {
+          const r = await api.get('/payments/credits')
+          if (r.data.available > (credits ?? 0)) {
+            clearInterval(interval); stripeTab?.close()
+            setCredits(r.data.available); setPurchasing(false)
+          }
+        } catch { /* ignore */ }
+      }, 2000)
+    } catch { stripeTab?.close(); setPurchasing(false) }
+  }
 
   // Handle return from Stripe Checkout
   useEffect(() => {
@@ -141,16 +167,52 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-th-text-primary">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-th-text-primary">Mes certifications</h1>
             <p className="text-th-text-muted text-sm mt-0.5">
               {user?.firstName ? `Bienvenue, ${user.firstName}` : user?.email}
             </p>
           </div>
           <Link to="/session/new"
             className="bg-th-accent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-th-accent-hover">
-            + Nouvelle session
+            + Nouvelle certification
           </Link>
         </div>
+
+        {/* Credits widget */}
+        {credits !== null && (
+          credits > 0 ? (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold text-green-700">{credits}</span>
+                <span className="text-sm text-green-700">crédit{credits > 1 ? 's' : ''} disponible{credits > 1 ? 's' : ''}</span>
+              </div>
+              <Link to="/session/new" className="text-sm font-medium text-green-700 hover:underline">
+                Lancer une certification →
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-panel border border-th-border rounded-xl px-4 py-3 flex items-center justify-between">
+              <p className="text-sm text-th-text-muted">Aucun crédit disponible</p>
+              {purchasing ? (
+                <span className="text-sm text-th-accent flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-th-accent border-t-transparent rounded-full animate-spin inline-block" />
+                  En attente…
+                </span>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_ANNUAL)}
+                    className="text-xs border border-th-border text-th-text-secondary px-3 py-1.5 rounded-lg hover:bg-surface-2 transition-colors">
+                    1 cert — 14 €
+                  </button>
+                  <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_LIFETIME)}
+                    className="text-xs bg-th-accent text-white px-3 py-1.5 rounded-lg hover:bg-th-accent-hover transition-colors">
+                    Pack 5 — 57 €
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        )}
 
 
         {/* Sessions list */}

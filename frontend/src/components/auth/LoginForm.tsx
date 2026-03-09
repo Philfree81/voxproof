@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
+import MicIcon from '../shared/MicIcon'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
@@ -33,7 +34,7 @@ export default function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-surface">
       <div className="bg-panel rounded-2xl shadow-sm border border-th-border p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <span className="text-4xl">🎙️</span>
+          <MicIcon className="w-10 h-14 mx-auto" />
           <h1 className="text-2xl font-bold text-th-text-primary mt-2">Welcome back</h1>
           <p className="text-th-text-muted text-sm mt-1">Sign in to VoxProof</p>
         </div>

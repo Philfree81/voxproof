@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useThemeStore } from '../store/themeStore'
 import LogoSobre from '../components/shared/LogoSobre'
+import MicIcon from '../components/shared/MicIcon'
 
 function HeroLogo() {
   const { theme } = useThemeStore()
@@ -21,21 +22,37 @@ function HeroLogo() {
     return <LogoSobre className="h-16 w-auto mx-auto" />
   }
   return (
-    <div className="flex flex-col items-center gap-2">
-      <span className="text-5xl sm:text-6xl">🎙️</span>
-      <span className="text-3xl sm:text-4xl font-bold text-th-text-primary tracking-tight">VoxProof</span>
+    <div className="flex flex-col items-center gap-4">
+      <MicIcon className="w-16 h-24 sm:w-20 sm:h-28" />
+      <span className="text-5xl sm:text-6xl font-bold text-th-text-primary tracking-tight">VoxProof</span>
     </div>
   )
 }
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface relative">
+
+      {/* Watermark */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage: 'url(/IMG_4124.jpg)',
+          backgroundSize: '100% 100%',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+          opacity: 0.20,
+        }}
+      />
+
+      {/* Content above watermark */}
+      <div className="relative z-10">
 
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-16 pb-12 md:pt-24 md:pb-16 text-center">
         <HeroLogo />
-        <h1 className="text-3xl sm:text-5xl font-bold text-th-text-primary mt-6 leading-tight">
+        <h1 className="text-2xl sm:text-4xl font-bold text-th-text-primary mt-6 leading-tight">
           Votre voix, <span className="text-th-accent">pour toujours sur la blockchain</span>
         </h1>
         <p className="mt-5 text-base sm:text-xl text-th-text-muted max-w-2xl mx-auto">
@@ -117,6 +134,7 @@ export default function Landing() {
         </div>
       </section>
 
+      </div> {/* end z-10 */}
     </div>
   )
 }

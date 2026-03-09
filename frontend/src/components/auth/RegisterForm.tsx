@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
+import MicIcon from '../shared/MicIcon'
 
 export default function RegisterForm() {
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
@@ -56,7 +57,7 @@ export default function RegisterForm() {
 
       <div className="bg-panel rounded-2xl shadow-sm border border-th-border p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <span className="text-4xl">🎙️</span>
+          <MicIcon className="w-10 h-14 mx-auto" />
           <h1 className="text-2xl font-bold text-th-text-primary mt-2">Create your account</h1>
           <p className="text-th-text-muted text-sm mt-1">Start notarizing your voice</p>
         </div>

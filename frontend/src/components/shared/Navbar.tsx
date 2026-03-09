@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore, Theme } from '../../store/themeStore'
 import LogoSobre from './LogoSobre'
-import api from '../../services/api'
+import MicIcon from './MicIcon'
 
 // ─── Theme definitions (shared with dropdown) ────────────────────────────────
 const THEMES: { id: Theme; label: string; colors: [string, string] }[] = [
@@ -43,7 +43,7 @@ function BrandLogo({ onClick }: { onClick: () => void }) {
   )
   return (
     <Link to="/" onClick={onClick} className="flex items-center gap-2">
-      <span className="text-2xl">🎙️</span>
+      <MicIcon className="w-5 h-7" />
       <span className="font-bold text-xl text-th-accent">VoxProof</span>
     </Link>
   )
@@ -56,17 +56,7 @@ export default function Navbar() {
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [credits, setCredits] = useState<number | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-
-  // Fetch credit count when dropdown opens
-  useEffect(() => {
-    if (dropdownOpen && user) {
-      api.get('/payments/credits')
-        .then(r => setCredits(r.data.available))
-        .catch(() => {})
-    }
-  }, [dropdownOpen])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -107,83 +97,76 @@ export default function Navbar() {
           </a>
 
           {user ? (
-            /* ─── Account dropdown ─── */
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(v => !v)}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-2 transition-colors"
-              >
-                {/* Avatar initiale */}
-                <span className="w-6 h-6 rounded-full bg-th-accent text-white text-xs font-bold flex items-center justify-center">
-                  {(displayName[0] || '?').toUpperCase()}
-                </span>
-                <span className="text-sm font-medium text-th-text-primary max-w-[120px] truncate">
-                  {user.firstName || user.email.split('@')[0]}
-                </span>
-                <svg className={`w-3.5 h-3.5 text-th-text-muted transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+            <>
+              <Link to="/dashboard"
+                className="text-sm font-medium text-th-text-secondary hover:text-th-accent transition-colors">
+                Mes certifications
+              </Link>
 
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-panel border border-th-border rounded-2xl shadow-xl z-50 overflow-hidden">
+              {/* ─── Account dropdown ─── */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(v => !v)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-2 transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-full bg-th-accent text-white text-xs font-bold flex items-center justify-center">
+                    {(displayName[0] || '?').toUpperCase()}
+                  </span>
+                  <span className="text-sm font-medium text-th-text-primary max-w-[120px] truncate">
+                    {user.firstName || user.email.split('@')[0]}
+                  </span>
+                  <svg className={`w-3.5 h-3.5 text-th-text-muted transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
-                  {/* Account header */}
-                  <div className="px-4 py-3 border-b border-th-border-light">
-                    <p className="text-sm font-semibold text-th-text-primary truncate">{displayName}</p>
-                    <p className="text-xs text-th-text-muted truncate mt-0.5">{user.email}</p>
-                  </div>
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-60 bg-panel border border-th-border rounded-2xl shadow-xl z-50 overflow-hidden">
 
-                  {/* Navigation */}
-                  <div className="py-1">
-                    <Link to="/dashboard" onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-th-text-secondary hover:bg-surface-2 hover:text-th-text-primary transition-colors">
-                      <span className="text-base">📊</span> Dashboard
-                    </Link>
-                    <Link to="/profile" onClick={() => setDropdownOpen(false)}
-                      className="flex items-center justify-between px-4 py-2.5 text-sm text-th-text-secondary hover:bg-surface-2 hover:text-th-text-primary transition-colors">
-                      <span className="flex items-center gap-2.5">
+                    {/* Account header */}
+                    <div className="px-4 py-3 border-b border-th-border-light">
+                      <p className="text-sm font-semibold text-th-text-primary truncate">{displayName}</p>
+                      <p className="text-xs text-th-text-muted truncate mt-0.5">{user.email}</p>
+                    </div>
+
+                    {/* Profile link */}
+                    <div className="py-1">
+                      <Link to="/profile" onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-th-text-secondary hover:bg-surface-2 hover:text-th-text-primary transition-colors">
                         <span className="text-base">👤</span> Mon profil
-                      </span>
-                      {credits !== null && (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          credits > 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {credits} crédit{credits !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </Link>
-                  </div>
+                      </Link>
+                    </div>
 
-                  {/* Theme switcher */}
-                  <div className="px-4 py-3 border-t border-th-border-light">
-                    <p className="text-xs font-semibold text-th-text-muted uppercase tracking-wide mb-2">Thème</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {THEMES.map(t => (
-                        <button key={t.id} onClick={() => setTheme(t.id)}
-                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-                            theme === t.id
-                              ? 'bg-th-accent-subtle text-th-accent font-semibold border border-th-accent/30'
-                              : 'text-th-text-secondary hover:bg-surface-2'
-                          }`}>
-                          <Swatch colors={t.colors} />
-                          {t.label}
-                        </button>
-                      ))}
+                    {/* Theme switcher */}
+                    <div className="px-4 py-3 border-t border-th-border-light">
+                      <p className="text-xs font-semibold text-th-text-muted uppercase tracking-wide mb-2">Thème</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {THEMES.map(t => (
+                          <button key={t.id} onClick={() => setTheme(t.id)}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                              theme === t.id
+                                ? 'bg-th-accent-subtle text-th-accent font-semibold border border-th-accent/30'
+                                : 'text-th-text-secondary hover:bg-surface-2'
+                            }`}>
+                            <Swatch colors={t.colors} />
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Logout */}
+                    <div className="border-t border-th-border-light py-1">
+                      <button onClick={handleLogout}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                        <span className="text-base">↩</span> Se déconnecter
+                      </button>
                     </div>
                   </div>
-
-                  {/* Logout */}
-                  <div className="border-t border-th-border-light py-1">
-                    <button onClick={handleLogout}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                      <span className="text-base">↩</span> Se déconnecter
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </>
           ) : (
             <>
               <Link to="/login" className="text-sm text-th-text-secondary hover:text-th-accent font-medium transition-colors">
@@ -234,7 +217,7 @@ export default function Navbar() {
               </div>
               <Link to="/dashboard" onClick={() => setMobileOpen(false)}
                 className="block py-2 text-sm text-th-text-secondary hover:text-th-accent font-medium">
-                Dashboard
+                Mes certifications
               </Link>
               <Link to="/profile" onClick={() => setMobileOpen(false)}
                 className="block py-2 text-sm text-th-text-secondary hover:text-th-accent font-medium">

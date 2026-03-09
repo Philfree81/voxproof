@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useRecorder } from '../hooks/useRecorder'
+import MicIcon from '../components/shared/MicIcon'
 import { SET_LABELS, getText, Language, READING_SETS } from '../data/readingTexts'
 import api from '../services/api'
 
@@ -421,7 +422,7 @@ export default function SessionPage() {
         <div className="bg-panel rounded-2xl border border-th-border p-6 flex flex-col items-center gap-4">
           <div className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl transition-all
             ${recording ? 'bg-red-100 animate-pulse' : audioBlob ? 'bg-green-100' : 'bg-th-accent-subtle'}`}>
-            {recording ? '🔴' : audioBlob ? '✅' : '🎙️'}
+            {recording ? '🔴' : audioBlob ? '✅' : <MicIcon className="w-8 h-12" />}
           </div>
 
           {recording && (
