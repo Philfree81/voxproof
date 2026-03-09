@@ -543,10 +543,34 @@ export default function SessionPage() {
   if (step === 'done' && result) return (
     <Layout>
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center">
-          <div className="text-4xl mb-2">🎉</div>
-          <h1 className="text-2xl font-bold text-th-text-primary">Signature vocale certifiée !</h1>
-          <p className="text-th-text-muted text-sm mt-1">Votre empreinte acoustique est ancrée sur la blockchain Avalanche.</p>
+        <div className="text-center relative overflow-hidden py-6">
+          {/* Paillettes d'or */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            {Array.from({ length: 36 }).map((_, i) => (
+              <span
+                key={i}
+                className="absolute block rounded-sm opacity-0"
+                style={{
+                  width: `${4 + (i % 4) * 2}px`,
+                  height: `${6 + (i % 3) * 3}px`,
+                  left: `${(i * 97 / 36 * 100) % 100}%`,
+                  top: '-10%',
+                  background: ['#FFD700','#FFC107','#FFB300','#FFECB3','#FFF8DC','#F9A825'][i % 6],
+                  transform: `rotate(${(i * 37) % 360}deg)`,
+                  animation: `confettiFall ${1.2 + (i % 8) * 0.18}s ${(i * 0.07)}s ease-in forwards`,
+                }}
+              />
+            ))}
+          </div>
+          <style>{`
+            @keyframes confettiFall {
+              0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+              80%  { opacity: 1; }
+              100% { transform: translateY(320px) rotate(720deg); opacity: 0; }
+            }
+          `}</style>
+          <h1 className="text-2xl font-bold text-th-text-primary relative z-10">Signature vocale certifiée !</h1>
+          <p className="text-th-text-muted text-sm mt-1 relative z-10">Votre empreinte acoustique est ancrée sur la blockchain Avalanche.</p>
         </div>
 
         {/* Session hash */}
