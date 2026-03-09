@@ -9,8 +9,8 @@ function HeroLogo() {
       <img
         src="/logo.png"
         alt="VoxProof"
-        className="h-32 w-auto mx-auto"
-        style={{ filter: 'drop-shadow(0 0 16px #00e5ff) drop-shadow(0 0 6px #00e5ff)' }}
+        className="h-48 w-auto mx-auto"
+        style={{ filter: 'drop-shadow(0 0 20px #00e5ff) drop-shadow(0 0 8px #00e5ff)' }}
       />
     )
   }

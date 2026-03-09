@@ -14,7 +14,7 @@ function BrandLogo({ onClick }: { onClick: () => void }) {
         <img
           src="/logo.png"
           alt="VoxProof"
-          className="h-16 w-auto"
+          className="h-20 w-auto"
           style={{ filter: 'drop-shadow(0 0 10px #00e5ff) drop-shadow(0 0 4px #00e5ff)' }}
         />
       </Link>
