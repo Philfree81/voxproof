@@ -4,7 +4,17 @@ import LogoSobre from '../components/shared/LogoSobre'
 
 function HeroLogo() {
   const { theme } = useThemeStore()
-  if (theme === 'blue' || theme === 'futuriste') {
+  if (theme === 'futuriste') {
+    return (
+      <img
+        src="/logo.png"
+        alt="VoxProof"
+        className="h-32 w-auto mx-auto"
+        style={{ filter: 'drop-shadow(0 0 16px #00e5ff) drop-shadow(0 0 6px #00e5ff)' }}
+      />
+    )
+  }
+  if (theme === 'blue') {
     return <img src="/logo.jpeg" alt="VoxProof" className="h-20 w-auto mx-auto" />
   }
   if (theme === 'sobre') {

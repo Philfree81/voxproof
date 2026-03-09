@@ -8,7 +8,20 @@ import LogoSobre from './LogoSobre'
 function BrandLogo({ onClick }: { onClick: () => void }) {
   const { theme } = useThemeStore()
 
-  if (theme === 'blue' || theme === 'futuriste') {
+  if (theme === 'futuriste') {
+    return (
+      <Link to="/" className="flex items-center" onClick={onClick}>
+        <img
+          src="/logo.png"
+          alt="VoxProof"
+          className="h-16 w-auto"
+          style={{ filter: 'drop-shadow(0 0 10px #00e5ff) drop-shadow(0 0 4px #00e5ff)' }}
+        />
+      </Link>
+    )
+  }
+
+  if (theme === 'blue') {
     return (
       <Link to="/" className="flex items-center" onClick={onClick}>
         <img src="/logo.jpeg" alt="VoxProof" className="h-12 w-auto" />
