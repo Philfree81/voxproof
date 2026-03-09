@@ -9,21 +9,50 @@ import { env } from '../config/env'
 const VALID_THEMES = ['classic', 'futuriste', 'blue', 'sobre']
 
 export async function getConfig(_req: AuthRequest, res: Response) {
-  const row = await prisma.appConfig.findUnique({ where: { key: 'default_theme' } })
-  return res.json({ defaultTheme: row?.value ?? 'classic' })
+  const [themeRow, retentionRow] = await Promise.all([
+    prisma.appConfig.findUnique({ where: { key: 'default_theme' } }),
+    prisma.appConfig.findUnique({ where: { key: 'audio_retention_days' } }),
+  ])
+  return res.json({
+    defaultTheme: themeRow?.value ?? 'classic',
+    audioRetentionDays: parseInt(retentionRow?.value ?? '5'),
+  })
 }
 
 export async function setConfig(req: AuthRequest, res: Response) {
-  const { defaultTheme } = req.body
-  if (!defaultTheme || !VALID_THEMES.includes(defaultTheme)) {
-    return res.status(400).json({ error: 'Invalid theme' })
+  const { defaultTheme, audioRetentionDays } = req.body
+
+  if (defaultTheme !== undefined) {
+    if (!VALID_THEMES.includes(defaultTheme)) {
+      return res.status(400).json({ error: 'Invalid theme' })
+    }
+    await prisma.appConfig.upsert({
+      where: { key: 'default_theme' },
+      update: { value: defaultTheme },
+      create: { key: 'default_theme', value: defaultTheme },
+    })
   }
-  await prisma.appConfig.upsert({
-    where: { key: 'default_theme' },
-    update: { value: defaultTheme },
-    create: { key: 'default_theme', value: defaultTheme },
+
+  if (audioRetentionDays !== undefined) {
+    const days = parseInt(audioRetentionDays)
+    if (isNaN(days) || days < 1 || days > 30) {
+      return res.status(400).json({ error: 'audioRetentionDays must be between 1 and 30' })
+    }
+    await prisma.appConfig.upsert({
+      where: { key: 'audio_retention_days' },
+      update: { value: String(days) },
+      create: { key: 'audio_retention_days', value: String(days) },
+    })
+  }
+
+  const [themeRow, retentionRow] = await Promise.all([
+    prisma.appConfig.findUnique({ where: { key: 'default_theme' } }),
+    prisma.appConfig.findUnique({ where: { key: 'audio_retention_days' } }),
+  ])
+  return res.json({
+    defaultTheme: themeRow?.value ?? 'classic',
+    audioRetentionDays: parseInt(retentionRow?.value ?? '5'),
   })
-  return res.json({ defaultTheme })
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -337,9 +366,51 @@ export async function listSessions(_req: AuthRequest, res: Response) {
       emailSentAt: true,
       kycVerified: true,
       audioCids: true,
+      audioUnpinAt: true,
+      audioDestroyedAt: true,
       createdAt: true,
       user: { select: { email: true, firstName: true, lastName: true } },
     },
   })
   return res.json(sessions)
+}
+
+/**
+ * Vérifie live via la gateway Pinata si les CIDs audio d'une session
+ * sont encore accessibles. Si tous sont introuvables (404), marque
+ * audioDestroyedAt en DB avec l'horodatage de la vérification.
+ */
+export async function verifyAudioDestruction(req: AuthRequest, res: Response) {
+  const { id } = req.params
+  const session = await prisma.voiceSession.findUnique({
+    where: { id },
+    select: { id: true, audioCids: true, audioDestroyedAt: true },
+  })
+  if (!session) return res.status(404).json({ error: 'Session not found' })
+
+  // Already verified destroyed
+  if (session.audioDestroyedAt) {
+    return res.json({ destroyed: true, verifiedAt: session.audioDestroyedAt, cids: [] })
+  }
+
+  // No CIDs ever uploaded
+  if (!session.audioCids || session.audioCids.length === 0) {
+    return res.json({ destroyed: true, verifiedAt: null, cids: [], note: 'No CIDs recorded' })
+  }
+
+  const { checkCidExists } = await import('../services/pinataService')
+  const results = await Promise.all(session.audioCids.map(cid => checkCidExists(cid)))
+  const allDestroyed = results.every(exists => !exists)
+
+  if (allDestroyed) {
+    const verifiedAt = new Date()
+    await prisma.voiceSession.update({
+      where: { id },
+      data: { audioDestroyedAt: verifiedAt },
+    })
+    return res.json({ destroyed: true, verifiedAt, cids: session.audioCids })
+  }
+
+  const stillAlive = session.audioCids.filter((_, i) => results[i])
+  return res.json({ destroyed: false, verifiedAt: null, cids: session.audioCids, stillAlive })
 }

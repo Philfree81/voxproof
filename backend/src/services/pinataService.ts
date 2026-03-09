@@ -47,3 +47,16 @@ export async function unpinFromPinata(cid: string): Promise<void> {
     console.log(`[Pinata] Unpinned ${cid}`)
   }
 }
+
+/**
+ * Vérifie si un CID IPFS est encore accessible sur la gateway Pinata.
+ * Retourne true si le fichier existe encore, false s'il a été supprimé (404).
+ */
+export async function checkCidExists(cid: string): Promise<boolean> {
+  try {
+    const response = await fetch(`https://gateway.pinata.cloud/ipfs/${cid}`, { method: 'HEAD' })
+    return response.ok
+  } catch {
+    return false
+  }
+}

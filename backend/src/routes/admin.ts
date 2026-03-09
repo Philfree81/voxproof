@@ -4,7 +4,7 @@ import {
   getConfig, setConfig,
   listUsers, updateUser, deleteUser,
   addCredit, deleteCredit,
-  listSessions, compareSessions,
+  listSessions, compareSessions, verifyAudioDestruction,
   listTextSets, createTextSet, updateTextSet, deleteTextSet,
   generateTextSet, setTextSelectionMode,
   listActivityLogs,
@@ -23,6 +23,7 @@ router.post('/users/:id/credit', addCredit)
 router.delete('/purchases/:id', deleteCredit)
 router.get('/sessions', listSessions)
 router.post('/sessions/compare', compareSessions)
+router.post('/sessions/:id/verify-audio', verifyAudioDestruction)
 
 router.get('/text-sets', listTextSets)
 router.post('/text-sets', createTextSet)

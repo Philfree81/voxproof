@@ -69,8 +69,10 @@ async function processJob(job: Job<SessionJobData>) {
     }
   }
 
+  const retentionRow = await prisma.appConfig.findUnique({ where: { key: 'audio_retention_days' } })
+  const retentionDays = parseInt(retentionRow?.value ?? '5')
   const audioUnpinAt = audioCids.length > 0
-    ? new Date(anchoredAt.getTime() + 5 * 24 * 60 * 60 * 1000)
+    ? new Date(anchoredAt.getTime() + retentionDays * 24 * 60 * 60 * 1000)
     : null
 
   // Update session in DB

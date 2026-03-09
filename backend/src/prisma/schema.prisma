@@ -137,6 +137,7 @@ model VoiceSession {
   emailSentAt    DateTime?
   audioCids      String[]      // IPFS CIDs for 5 audio files (available 5 days)
   audioUnpinAt   DateTime?     // when to unpin from Pinata (anchoredAt + 5 days)
+  audioDestroyedAt DateTime?   // set when audio destruction is verified via Pinata gateway
 
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

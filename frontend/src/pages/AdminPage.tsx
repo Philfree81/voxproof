@@ -66,6 +66,8 @@ interface AdminSession {
   emailSentAt?: string
   kycVerified: boolean
   audioCids?: string[]
+  audioUnpinAt?: string | null
+  audioDestroyedAt?: string | null
   createdAt: string
   user: { email: string; firstName?: string; lastName?: string }
 }
@@ -103,7 +105,9 @@ export default function AdminPage() {
 
   // Config tab
   const [defaultTheme, setDefaultTheme] = useState<Theme>('classic')
+  const [audioRetentionDays, setAudioRetentionDays] = useState<number>(5)
   const [savingConfig, setSavingConfig] = useState(false)
+  const [savingRetention, setSavingRetention] = useState(false)
 
   async function handleSaveConfig() {
     setSavingConfig(true)
@@ -111,6 +115,37 @@ export default function AdminPage() {
       await api.put('/admin/config', { defaultTheme })
     } finally {
       setSavingConfig(false)
+    }
+  }
+
+  async function handleSaveRetention() {
+    setSavingRetention(true)
+    try {
+      await api.put('/admin/config', { audioRetentionDays })
+    } finally {
+      setSavingRetention(false)
+    }
+  }
+
+  // Verify audio destruction
+  const [verifyingSession, setVerifyingSession] = useState<string | null>(null)
+
+  async function handleVerifyAudio(sessionId: string) {
+    setVerifyingSession(sessionId)
+    try {
+      const { data } = await api.post(`/admin/sessions/${sessionId}/verify-audio`)
+      setSessions(prev => prev.map(s =>
+        s.id === sessionId
+          ? { ...s, audioDestroyedAt: data.destroyed && data.verifiedAt ? data.verifiedAt : s.audioDestroyedAt }
+          : s
+      ))
+      if (!data.destroyed) {
+        alert(`Fichiers encore accessibles (${data.stillAlive?.length ?? 0} CID(s) actif(s))`)
+      }
+    } catch (e: any) {
+      alert(e.response?.data?.error || 'Erreur lors de la vérification')
+    } finally {
+      setVerifyingSession(null)
     }
   }
 
@@ -161,7 +196,10 @@ export default function AdminPage() {
   }, [user, navigate])
 
   useEffect(() => {
-    api.get('/admin/config').then(r => setDefaultTheme(r.data.defaultTheme)).catch(() => {})
+    api.get('/admin/config').then(r => {
+      setDefaultTheme(r.data.defaultTheme)
+      if (r.data.audioRetentionDays !== undefined) setAudioRetentionDays(r.data.audioRetentionDays)
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -696,6 +734,31 @@ export default function AdminPage() {
                 {savingConfig ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
+
+            <div className="bg-panel rounded-2xl border border-th-border p-6">
+              <h2 className="text-base font-bold text-th-text-primary mb-1">Rétention audio (jours)</h2>
+              <p className="text-sm text-th-text-muted mb-5">
+                Durée de conservation des enregistrements audio sur IPFS avant suppression automatique.
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={audioRetentionDays}
+                  onChange={e => setAudioRetentionDays(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))}
+                  className="w-24 border border-th-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-th-accent"
+                />
+                <span className="text-sm text-th-text-muted">jour(s) (min 1, max 30)</span>
+              </div>
+              <button
+                onClick={handleSaveRetention}
+                disabled={savingRetention}
+                className="mt-5 w-full bg-th-accent text-white py-2.5 rounded-xl font-medium hover:bg-th-accent-hover disabled:opacity-50 transition-colors text-sm"
+              >
+                {savingRetention ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
           </div>
         ) : (
           /* Sessions tab */
@@ -793,10 +856,34 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-xs text-th-text-secondary">{fmt(s.anchoredAt)}</td>
                     <td className="px-4 py-3 text-xs text-th-text-secondary">{s.validUntil ? fmt(s.validUntil) : '∞'}</td>
                     <td className="px-4 py-3 text-xs text-th-text-secondary">{s.emailSentAt ? '✓' : '—'}</td>
-                    <td className="px-4 py-3 text-xs text-th-text-secondary">
-                      {s.audioCids && s.audioCids.length > 0
-                        ? <span className="text-green-600 font-medium">{s.audioCids.length} fichier(s)</span>
-                        : <span className="text-gray-300">—</span>}
+                    <td className="px-4 py-3 text-xs max-w-[200px]">
+                      {s.audioDestroyedAt ? (
+                        <span className="inline-flex flex-col gap-0.5">
+                          <span className="text-green-600 font-medium">Supprimés (RGPD)</span>
+                          <span className="text-th-text-muted text-[10px]">vérifié {fmt(s.audioDestroyedAt)}</span>
+                        </span>
+                      ) : s.audioCids && s.audioCids.length > 0 ? (
+                        <div className="space-y-1">
+                          {s.audioUnpinAt && new Date(s.audioUnpinAt) < new Date() && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Suppression prévue passée</span>
+                          )}
+                          <div className="font-mono text-[10px] text-th-text-muted space-y-0.5">
+                            {s.audioCids.slice(0, 2).map(cid => (
+                              <div key={cid} title={cid}>{cid.slice(0, 12)}…</div>
+                            ))}
+                            {s.audioCids.length > 2 && <div>+{s.audioCids.length - 2} autre(s)</div>}
+                          </div>
+                          <button
+                            onClick={() => handleVerifyAudio(s.id)}
+                            disabled={verifyingSession === s.id}
+                            className="text-[10px] px-2 py-0.5 border border-th-border rounded text-th-text-secondary hover:bg-surface-2 disabled:opacity-50"
+                          >
+                            {verifyingSession === s.id ? 'Vérif…' : 'Vérifier'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
