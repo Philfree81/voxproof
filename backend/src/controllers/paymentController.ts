@@ -45,6 +45,18 @@ export async function getPurchaseStatus(req: AuthRequest, res: Response) {
   })
 }
 
+export async function getCredits(req: AuthRequest, res: Response) {
+  const purchases = await prisma.purchase.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, productType: true, stripePriceId: true, usedAt: true, createdAt: true },
+  })
+
+  const available = purchases.filter(p => !p.usedAt).length
+
+  return res.json({ available, total: purchases.length, purchases })
+}
+
 export async function stripeWebhook(req: Request, res: Response) {
   const sig = req.headers['stripe-signature'] as string
   let event

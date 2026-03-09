@@ -76,7 +76,9 @@ export default function Navbar() {
               <Link to="/dashboard" className="text-sm text-th-text-secondary hover:text-th-accent font-medium transition-colors">
                 Dashboard
               </Link>
-              <span className="text-sm text-th-text-muted truncate max-w-[160px]">{user.email}</span>
+              <Link to="/profile" className="text-sm text-th-text-secondary hover:text-th-accent font-medium transition-colors">
+                Profil
+              </Link>
               <button onClick={handleLogout} className="text-sm text-th-text-secondary hover:text-red-500 font-medium transition-colors">
                 Logout
               </button>
@@ -133,6 +135,10 @@ export default function Navbar() {
               <Link to="/dashboard" onClick={() => setMenuOpen(false)}
                 className="block py-2 text-sm text-th-text-secondary hover:text-th-accent font-medium">
                 Dashboard
+              </Link>
+              <Link to="/profile" onClick={() => setMenuOpen(false)}
+                className="block py-2 text-sm text-th-text-secondary hover:text-th-accent font-medium">
+                Profil
               </Link>
               <p className="py-2 text-sm text-th-text-muted truncate">{user.email}</p>
               <button onClick={handleLogout}
