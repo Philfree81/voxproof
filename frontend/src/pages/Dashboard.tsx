@@ -199,16 +199,10 @@ export default function Dashboard() {
                   En attente…
                 </span>
               ) : (
-                <div className="flex gap-2">
-                  <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_ANNUAL)}
-                    className="text-xs border border-th-border text-th-text-secondary px-3 py-1.5 rounded-lg hover:bg-surface-2 transition-colors">
-                    1 cert — 14 €
-                  </button>
-                  <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_LIFETIME)}
-                    className="text-xs bg-th-accent text-white px-3 py-1.5 rounded-lg hover:bg-th-accent-hover transition-colors">
-                    Pack 5 — 57 €
-                  </button>
-                </div>
+                <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_ANNUAL)}
+                  className="text-xs bg-th-accent text-white px-4 py-1.5 rounded-lg hover:bg-th-accent-hover transition-colors font-medium">
+                  Acheter des crédits
+                </button>
               )}
             </div>
           )
