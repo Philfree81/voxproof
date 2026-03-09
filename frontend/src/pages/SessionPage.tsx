@@ -106,10 +106,16 @@ export default function SessionPage() {
   const [submitError, setSubmitError] = useState('')
   const [hasCredit, setHasCredit] = useState<boolean | null>(null)
   const [purchasing, setPurchasing] = useState(false)
+  const [withIdentityVerification, setWithIdentityVerification] = useState(false)
 
   // Dynamic text sets from DB (fallback to hardcoded if empty)
   const [dbSets, setDbSets] = useState<Array<{ id: string; name: string; isDefault: boolean; texts: Record<string, string[]> }>>([])
   const [selectionMode, setSelectionMode] = useState<'default' | 'random'>('default')
+
+  // Auto-enable identity verification if user already verified
+  useEffect(() => {
+    if (user?.kycVerificationId) setWithIdentityVerification(true)
+  }, [user?.kycVerificationId])
 
   useEffect(() => {
     api.get('/sessions/text-sets').then(r => {
@@ -227,6 +233,7 @@ export default function SessionPage() {
         form.append('audio', blob, `audio${i + 1}.webm`)
       })
       form.append('language', language)
+      form.append('withIdentityVerification', String(withIdentityVerification))
       const selectedSetId = dbSets[setIndex]?.id
       if (selectedSetId) form.append('textSetId', selectedSetId)
 
@@ -264,10 +271,30 @@ export default function SessionPage() {
           <p className="text-th-text-muted text-sm mt-1">Vous allez enregistrer 5 textes pour créer votre signature acoustique.</p>
         </div>
 
-        {user?.kycStatus !== 'APPROVED' && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p className="text-sm font-medium text-orange-800">⚠ Identité non vérifiée</p>
-            <p className="text-xs text-orange-600 mt-1">Votre certificat portera la mention <strong>« Identité non vérifiée »</strong>. Vous pouvez tout de même enregistrer votre signature vocale.</p>
+        {/* Identity verification block */}
+        {user?.kycVerificationId ? (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-800">✓ Vérification d'identité disponible</p>
+                <p className="text-xs text-green-600 mt-0.5">Votre identité a déjà été vérifiée via Stripe Identity. Elle sera incluse dans ce certificat.</p>
+              </div>
+              <button
+                onClick={() => setWithIdentityVerification(v => !v)}
+                className={`ml-4 flex-shrink-0 w-11 h-6 rounded-full transition-colors ${withIdentityVerification ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <span className={`block w-5 h-5 bg-white rounded-full shadow transform transition-transform mx-0.5 ${withIdentityVerification ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </div>
+            {!withIdentityVerification && <p className="text-xs text-green-500 mt-1">Désactivé — le certificat affichera uniquement « Email vérifié ».</p>}
+          </div>
+        ) : (
+          <div className="bg-th-accent-subtle border border-th-border-light rounded-xl p-4">
+            <p className="text-sm font-medium text-th-accent">Vérification d'identité (optionnelle)</p>
+            <p className="text-xs text-th-text-muted mt-1">
+              Votre certificat affichera <strong>« Email vérifié »</strong>. Pour y ajouter une vérification Stripe Identity (document officiel + selfie) :{' '}
+              <a href="/kyc" className="text-th-accent underline hover:text-th-accent-hover font-medium">Vérifier mon identité</a>
+            </p>
           </div>
         )}
 

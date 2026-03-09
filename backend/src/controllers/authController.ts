@@ -50,6 +50,7 @@ export async function register(req: Request, res: Response) {
       firstName,
       lastName,
       stripeCustomerId,
+      kycStatus: 'APPROVED', // email registration = approved
     },
     select: { id: true, email: true, firstName: true, lastName: true, kycStatus: true, theme: true },
   })
@@ -157,7 +158,7 @@ export async function getMe(req: Request & { userId?: string }, res: Response) {
     where: { id: req.userId },
     select: {
       id: true, email: true, firstName: true, lastName: true,
-      kycStatus: true, emailVerified: true, theme: true,
+      kycStatus: true, kycVerificationId: true, emailVerified: true, theme: true,
       createdAt: true, purchases: true,
     },
   })

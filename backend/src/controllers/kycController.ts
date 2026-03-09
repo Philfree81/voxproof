@@ -7,7 +7,7 @@ import { env } from '../config/env'
 export async function startKyc(req: AuthRequest, res: Response) {
   const user = await prisma.user.findUnique({ where: { id: req.userId } })
   if (!user) return res.status(404).json({ error: 'User not found' })
-  if (user.kycStatus === 'APPROVED') {
+  if (user.kycVerificationId) {
     return res.status(200).json({ message: 'Already verified', kycStatus: 'APPROVED' })
   }
 

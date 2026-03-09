@@ -14,7 +14,7 @@ export async function createSession(req: AuthRequest, res: Response) {
     return res.status(400).json({ error: 'Exactly 5 audio files are required' })
   }
 
-  const { language = 'fr', textSetId } = req.body
+  const { language = 'fr', textSetId, withIdentityVerification } = req.body
 
   // Resolve text set: by ID (preferred) or fall back to first active set
   let resolvedSet: { id: string; name: string } | null = null
@@ -63,7 +63,7 @@ export async function createSession(req: AuthRequest, res: Response) {
       language,
       textSetIndex: setIndex,
       status: 'PROCESSING',
-      kycVerified: user.kycStatus === 'APPROVED',
+      kycVerified: withIdentityVerification === 'true' && !!user.kycVerificationId,
       validUntil,
     },
   })
@@ -74,7 +74,7 @@ export async function createSession(req: AuthRequest, res: Response) {
     // For now: extract hash first (processor call without tx info), then anchor
 
     // First pass — get the acoustic hash
-    const kycVerified = user.kycStatus === 'APPROVED'
+    const kycVerified = withIdentityVerification === 'true' && !!user.kycVerificationId
     const preliminary = await processSession(
       files,
       { firstName: user.firstName, lastName: user.lastName, email: user.email },

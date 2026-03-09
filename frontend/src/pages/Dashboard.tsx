@@ -153,18 +153,18 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* KYC banner — info seulement, ne bloque plus */}
-        {user?.kycStatus !== 'APPROVED' && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+        {/* Optional identity verification nudge */}
+        {!user?.kycVerificationId && (
+          <div className="bg-th-accent-subtle border border-th-border-light rounded-xl p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-800">Identité non vérifiée</p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                Vous pouvez enregistrer votre signature, mais vos certificats porteront la mention <strong>« Identité non vérifiée »</strong>.
+              <p className="text-sm font-medium text-th-accent">Renforcez votre certificat</p>
+              <p className="text-xs text-th-text-muted mt-0.5">
+                Ajoutez une vérification d'identité Stripe (document + selfie) pour obtenir la mention <strong>« Identité vérifiée »</strong> sur vos certificats.
               </p>
             </div>
             <button onClick={() => navigate('/kyc')}
-              className="ml-4 shrink-0 text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700">
-              Vérifier mon identité
+              className="ml-4 shrink-0 text-sm bg-th-accent text-white px-3 py-1.5 rounded-lg hover:bg-th-accent-hover">
+              Vérifier
             </button>
           </div>
         )}

@@ -18,6 +18,7 @@ export interface User {
   firstName?: string
   lastName?: string
   kycStatus: KycStatus
+  kycVerificationId?: string | null
   isAdmin: boolean
   emailVerified: boolean
   theme?: string

@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 
 export default function RegisterForm() {
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
+  const [cgvAccepted, setCgvAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -17,6 +18,7 @@ export default function RegisterForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (!cgvAccepted) { setError('Vous devez accepter les Conditions Générales de Vente et d\'Utilisation.'); return }
     setError('')
     setLoading(true)
     try {
@@ -37,23 +39,16 @@ export default function RegisterForm() {
       {showSuccess && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-panel rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center border border-th-border">
-            <div className="text-5xl mb-4">📧</div>
+            <div className="text-5xl mb-4">✅</div>
             <h2 className="text-xl font-bold text-th-text-primary mb-2">Compte créé !</h2>
             <p className="text-th-text-secondary text-sm mb-6">
-              Un email de confirmation vous a été envoyé à <strong>{form.email}</strong>.
-              Vérifiez votre boîte de réception pour confirmer votre inscription.
+              Votre compte est actif. Vous pouvez dès maintenant créer votre première session de certification vocale.
             </p>
             <button
-              onClick={() => navigate('/kyc')}
+              onClick={() => navigate('/dashboard')}
               className="w-full bg-th-accent text-white py-2.5 rounded-lg font-medium hover:bg-th-accent-hover transition-colors"
             >
-              Continuer vers la vérification d'identité
-            </button>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="w-full text-th-text-muted text-sm mt-2 hover:text-th-text-secondary underline"
-            >
-              Passer cette étape — continuer sans vérifier mon identité
+              Accéder à mon tableau de bord →
             </button>
           </div>
         </div>
@@ -94,9 +89,26 @@ export default function RegisterForm() {
               placeholder="Min. 8 characters" />
           </div>
 
+          <div className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              id="cgv"
+              checked={cgvAccepted}
+              onChange={e => setCgvAccepted(e.target.checked)}
+              className="mt-0.5 accent-th-accent flex-shrink-0"
+            />
+            <label htmlFor="cgv" className="text-xs text-th-text-muted leading-relaxed cursor-pointer">
+              J'ai lu et j'accepte les{' '}
+              <Link to="/cgv" target="_blank" className="text-th-accent hover:underline font-medium">
+                Conditions Générales de Vente et d'Utilisation
+              </Link>
+              , y compris la déclaration d'identité sur l'honneur et le caractère irréversible de la certification blockchain.
+            </label>
+          </div>
+
           {error && <p className="text-red-500 text-sm bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
 
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={loading || !cgvAccepted}
             className="w-full bg-th-accent text-white py-2.5 rounded-lg font-medium hover:bg-th-accent-hover disabled:opacity-50 transition-colors">
             {loading ? 'Creating account…' : 'Create account'}
           </button>

@@ -11,6 +11,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import LoginForm from './components/auth/LoginForm'
 import RegisterForm from './components/auth/RegisterForm'
+import CgvPage from './pages/CgvPage'
 
 function PrivateRoute({ children }: { children: JSX.Element }) {
   const { token } = useAuthStore()
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/register" element={<RegisterForm />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/cgv" element={<CgvPage />} />
         <Route path="/kyc" element={<PrivateRoute><KycPage /></PrivateRoute>} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/session/new" element={<PrivateRoute><SessionPage /></PrivateRoute>} />

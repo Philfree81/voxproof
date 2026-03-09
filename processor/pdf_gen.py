@@ -45,8 +45,8 @@ LANG_LABELS = {
         'set': 'Ensemble de textes',
         'lang': 'Langue d\'enregistrement',
         'kyc': 'Vérification d\'identité',
-        'kyc_yes': '✓ Identité vérifiée (Stripe Identity)',
-        'kyc_no': '⚠ Identité NON vérifiée — certificat sans contrôle d\'identité',
+        'kyc_yes': '✓ Email vérifié · Identité vérifiée (Stripe Identity)',
+        'kyc_no': '✓ Email vérifié',
     },
     'en': {
         'title': 'VOCAL IDENTITY CERTIFICATE',
@@ -66,8 +66,8 @@ LANG_LABELS = {
         'set': 'Text set',
         'lang': 'Recording language',
         'kyc': 'Identity verification',
-        'kyc_yes': '✓ Identity verified (Stripe Identity)',
-        'kyc_no': '⚠ Identity NOT verified — certificate without identity check',
+        'kyc_yes': '✓ Email verified · Identity verified (Stripe Identity)',
+        'kyc_no': '✓ Email verified',
     },
     'es': {
         'title': 'CERTIFICADO DE IDENTIDAD VOCAL',
@@ -87,8 +87,8 @@ LANG_LABELS = {
         'set': 'Conjunto de textos',
         'lang': 'Idioma de grabación',
         'kyc': 'Verificación de identidad',
-        'kyc_yes': '✓ Identidad verificada (Stripe Identity)',
-        'kyc_no': '⚠ Identidad NO verificada — certificado sin control de identidad',
+        'kyc_yes': '✓ Email verificado · Identidad verificada (Stripe Identity)',
+        'kyc_no': '✓ Email verificado',
     },
 }
 
@@ -165,7 +165,7 @@ def generate_certificate(
     kyc_ok_style = ParagraphStyle('KycOk', fontSize=10, fontName='Helvetica-Bold', textColor=colors.HexColor('#15803d'), spaceAfter=3)
     kyc_warn_style = ParagraphStyle('KycWarn', fontSize=10, fontName='Helvetica-Bold', textColor=colors.HexColor('#b45309'), spaceAfter=3)
 
-    kyc_value = Paragraph(L['kyc_yes'], kyc_ok_style) if kyc_verified else Paragraph(L['kyc_no'], kyc_warn_style)
+    kyc_value = Paragraph(L['kyc_yes'], kyc_ok_style) if kyc_verified else Paragraph(L['kyc_no'], kyc_ok_style)
 
     identity_data = [
         [Paragraph(f"<b>{L['holder']}</b>", bold_style),
