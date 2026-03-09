@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Layout from '../components/shared/Layout'
 import { useRecorder } from '../hooks/useRecorder'
 import { SET_LABELS, getText, Language, READING_SETS } from '../data/readingTexts'
@@ -93,7 +93,8 @@ function ProcessingScreen() {
 
 export default function SessionPage() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const { user, fetchMe } = useAuthStore()
   const { recording, audioBlob, audioUrl, duration, error, start, stop, reset } = useRecorder()
 
   const [step, setStep] = useState<Step>('setup')
@@ -107,15 +108,33 @@ export default function SessionPage() {
   const [hasCredit, setHasCredit] = useState<boolean | null>(null)
   const [purchasing, setPurchasing] = useState(false)
   const [withIdentityVerification, setWithIdentityVerification] = useState(false)
+  const [kycLoading, setKycLoading] = useState(false)
 
   // Dynamic text sets from DB (fallback to hardcoded if empty)
   const [dbSets, setDbSets] = useState<Array<{ id: string; name: string; isDefault: boolean; texts: Record<string, string[]> }>>([])
   const [selectionMode, setSelectionMode] = useState<'default' | 'random'>('default')
 
-  // Auto-enable identity verification if user already verified
+  // Retour depuis Stripe Identity (?kyc=complete) — refresh user puis active le toggle
+  useEffect(() => {
+    if (searchParams.get('kyc') === 'complete') {
+      fetchMe().then(() => setWithIdentityVerification(true))
+    }
+  }, [])
+
+  // Auto-enable si déjà vérifié
   useEffect(() => {
     if (user?.kycVerificationId) setWithIdentityVerification(true)
   }, [user?.kycVerificationId])
+
+  async function startIdentityVerification() {
+    setKycLoading(true)
+    try {
+      const { data } = await api.post('/kyc/start', { returnTo: '/session/new' })
+      window.location.href = data.url
+    } catch {
+      setKycLoading(false)
+    }
+  }
 
   useEffect(() => {
     api.get('/sessions/text-sets').then(r => {
@@ -272,31 +291,36 @@ export default function SessionPage() {
         </div>
 
         {/* Identity verification block */}
-        {user?.kycVerificationId ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-800">✓ Vérification d'identité disponible</p>
-                <p className="text-xs text-green-600 mt-0.5">Votre identité a déjà été vérifiée via Stripe Identity. Elle sera incluse dans ce certificat.</p>
-              </div>
+        <div className="bg-panel border border-th-border rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-th-text-primary">Vérification d'identité</p>
+              <p className="text-xs text-th-text-muted mt-0.5">
+                {user?.kycVerificationId
+                  ? 'Identité vérifiée via Stripe — incluse dans ce certificat'
+                  : 'Optionnelle — ajoute « Identité vérifiée » au certificat'}
+              </p>
+            </div>
+            {user?.kycVerificationId && (
               <button
                 onClick={() => setWithIdentityVerification(v => !v)}
                 className={`ml-4 flex-shrink-0 w-11 h-6 rounded-full transition-colors ${withIdentityVerification ? 'bg-green-500' : 'bg-gray-300'}`}
               >
                 <span className={`block w-5 h-5 bg-white rounded-full shadow transform transition-transform mx-0.5 ${withIdentityVerification ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
-            </div>
-            {!withIdentityVerification && <p className="text-xs text-green-500 mt-1">Désactivé — le certificat affichera uniquement « Email vérifié ».</p>}
+            )}
           </div>
-        ) : (
-          <div className="bg-th-accent-subtle border border-th-border-light rounded-xl p-4">
-            <p className="text-sm font-medium text-th-accent">Vérification d'identité (optionnelle)</p>
-            <p className="text-xs text-th-text-muted mt-1">
-              Votre certificat affichera <strong>« Email vérifié »</strong>. Pour y ajouter une vérification Stripe Identity (document officiel + selfie) :{' '}
-              <a href="/kyc" className="text-th-accent underline hover:text-th-accent-hover font-medium">Vérifier mon identité</a>
-            </p>
-          </div>
-        )}
+
+          {!user?.kycVerificationId && (
+            <button
+              onClick={startIdentityVerification}
+              disabled={kycLoading}
+              className="w-full text-sm border border-th-border text-th-text-secondary py-2 rounded-lg hover:bg-surface-2 disabled:opacity-50 transition-colors"
+            >
+              {kycLoading ? 'Redirection vers Stripe…' : 'Vérifier mon identité maintenant (document + selfie)'}
+            </button>
+          )}
+        </div>
 
         <div className="bg-panel rounded-2xl border border-th-border p-6 space-y-5">
           {/* Language */}

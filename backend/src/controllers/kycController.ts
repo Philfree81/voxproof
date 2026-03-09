@@ -11,7 +11,8 @@ export async function startKyc(req: AuthRequest, res: Response) {
     return res.status(200).json({ message: 'Already verified', kycStatus: 'APPROVED' })
   }
 
-  const returnUrl = `${env.frontendUrl}/dashboard?kyc=complete`
+  const returnTo = req.body.returnTo || '/dashboard'
+  const returnUrl = `${env.frontendUrl}${returnTo}?kyc=complete`
   const { sessionId, url } = await createIdentityVerificationSession(req.userId!, returnUrl)
 
   await prisma.user.update({
