@@ -10,6 +10,7 @@ import paymentRoutes from './routes/payments'
 import sessionRoutes from './routes/sessions'
 import adminRoutes from './routes/admin'
 import { startUnpinScheduler } from './services/unpinScheduler'
+import { startSessionWorker } from './services/sessionWorker'
 import { seedBuiltinTextSets } from './services/seedBuiltinSets'
 import { prisma } from './config/database'
 
@@ -59,6 +60,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 app.listen(env.port, () => {
   console.log(`VoxProof API running on port ${env.port} [${env.nodeEnv}]`)
   startUnpinScheduler()
+  startSessionWorker()
   seedBuiltinTextSets().catch(err => console.error('[Seed] Built-in sets error:', err))
   prisma.appConfig.upsert({
     where: { key: 'default_theme' },

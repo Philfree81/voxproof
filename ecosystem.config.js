@@ -19,7 +19,7 @@ module.exports = {
       name: 'voxproof-processor',
       cwd: '/home/phil/voxproof/processor',
       script: '/home/phil/voxproof/processor/venv/bin/uvicorn',
-      args: 'main:app --host 0.0.0.0 --port 5000',
+      args: 'main:app --host 0.0.0.0 --port 5000 --workers 4',
       watch: false,
       restart_delay: 3000,
       max_restarts: 10,

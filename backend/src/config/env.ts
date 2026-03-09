@@ -43,4 +43,7 @@ export const env = {
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
   twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
   notifyWhatsappTo: process.env.NOTIFY_WHATSAPP_TO || '',
+
+  redisHost: process.env.REDIS_HOST || 'localhost',
+  redisPort: parseInt(process.env.REDIS_PORT || '6379'),
 }

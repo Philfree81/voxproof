@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createSession, getSessions, getSession, getSessionPdf, deleteSession } from '../controllers/sessionController'
+import { createSession, getSessions, getSession, getSessionStatus, getSessionPdf, deleteSession } from '../controllers/sessionController'
 import { requireAuth } from '../middleware/auth'
 import { uploadAudio } from '../middleware/upload'
 import { prisma } from '../config/database'
@@ -21,6 +21,7 @@ router.use(requireAuth)
 
 router.get('/', getSessions)
 router.get('/:id/pdf', getSessionPdf)
+router.get('/:id/status', getSessionStatus)
 router.post('/:id/log-texts-download', async (req: any, res) => {
   const { logActivity } = await import('../services/activityService')
   logActivity('TEXTS_DOWNLOADED', { userId: req.userId, metadata: { sessionId: req.params.id }, req })

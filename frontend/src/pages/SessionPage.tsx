@@ -7,7 +7,7 @@ import MicIcon from '../components/shared/MicIcon'
 import { SET_LABELS, getText, Language, READING_SETS } from '../data/readingTexts'
 import api from '../services/api'
 
-type Step = 'setup' | 'recording' | 'review' | 'processing' | 'done'
+type Step = 'setup' | 'recording' | 'review' | 'processing' | 'queued' | 'done'
 
 const LANG_NAMES: Record<Language, string> = {
   fr: 'Français', en: 'English', es: 'Español',
@@ -105,6 +105,7 @@ export default function SessionPage() {
   const [recordings, setRecordings] = useState<Blob[]>([])
   const [audioUrls, setAudioUrls] = useState<string[]>([])
   const [result, setResult] = useState<any>(null)
+  const [pollingSessionId, setPollingSessionId] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState('')
   const [hasCredit, setHasCredit] = useState<boolean | null>(null)
   const [purchasing, setPurchasing] = useState(false)
@@ -126,6 +127,42 @@ export default function SessionPage() {
   useEffect(() => {
     if (user?.kycVerificationId) setWithIdentityVerification(true)
   }, [user?.kycVerificationId])
+
+  // Polling for async session processing
+  useEffect(() => {
+    if (!pollingSessionId) return
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await api.get(`/sessions/${pollingSessionId}/status`)
+        if (data.status === 'ANCHORED') {
+          clearInterval(interval)
+          setResult({
+            sessionId: data.sessionId,
+            acousticHash: data.acousticHash,
+            voiceHash: data.voiceHash,
+            txHash: data.txHash,
+            blockNumber: data.blockNumber,
+            validUntil: data.validUntil,
+            radarChart: data.radarChart,
+            propertiesChart: data.propertiesChart,
+            spectrogram: data.spectrogram,
+            spectrogramMetrics: data.spectrogramMetrics,
+            pdf: data.pdf,
+            audioCids: data.audioCids ?? [],
+            audioUnpinAt: data.audioUnpinAt ?? null,
+          })
+          setStep('done')
+        } else if (data.status === 'FAILED') {
+          clearInterval(interval)
+          setSubmitError('Le traitement a échoué. Veuillez réessayer.')
+          setStep('review')
+        }
+      } catch {
+        // ignore transient errors
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [pollingSessionId])
 
   async function startIdentityVerification() {
     setKycLoading(true)
@@ -260,8 +297,8 @@ export default function SessionPage() {
       const { data } = await api.post('/sessions', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      setResult(data)
-      setStep('done')
+      setPollingSessionId(data.sessionId)
+      setStep('queued')
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Processing failed'
       // Surface processor detail if present (e.g. "Feature extraction failed for audio 2: …")
@@ -538,6 +575,35 @@ export default function SessionPage() {
 
   // ─── PROCESSING ───────────────────────────────────────────────────────────
   if (step === 'processing') return <ProcessingScreen />
+
+  // ─── QUEUED ───────────────────────────────────────────────────────────────
+  if (step === 'queued') return (
+    <Layout>
+      <div className="max-w-2xl mx-auto py-16 flex flex-col items-center gap-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-th-accent-subtle flex items-center justify-center">
+          <div className="w-8 h-8 border-3 border-th-accent border-t-transparent rounded-full animate-spin" style={{ borderWidth: '3px' }} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-th-text-primary">Traitement en cours…</h2>
+          <p className="text-th-text-muted text-sm mt-2">Votre voix est en cours d'analyse et d'ancrage sur la blockchain.</p>
+          <p className="text-th-text-muted text-sm mt-1">Vous recevrez votre certificat par email dès que c'est prêt.</p>
+        </div>
+        <div className="w-full max-w-sm space-y-2 text-sm text-left">
+          {[
+            'Analyse acoustique en cours…',
+            'Modélisation biométrique…',
+            'Ancrage blockchain…',
+            'Génération du certificat…',
+          ].map((label, i) => (
+            <div key={i} className="flex items-center gap-2 text-th-text-muted">
+              <div className="w-1.5 h-1.5 rounded-full bg-th-accent animate-pulse" style={{ animationDelay: `${i * 0.4}s` }} />
+              {label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </Layout>
+  )
 
   // ─── DONE ─────────────────────────────────────────────────────────────────
   if (step === 'done' && result) return (
