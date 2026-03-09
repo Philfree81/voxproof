@@ -43,18 +43,18 @@ html.theme-futuriste h2 {
 
 /* ── VOXPROOF BLUE ────────────────────────────────────── */
 html.theme-blue {
-  --color-surface:        #060d1a;
-  --color-surface-2:      #0c1a2e;
-  --color-panel:          #0f2040;
-  --color-border:         #1a3a6a;
-  --color-border-light:   #122a50;
-  --color-text-primary:   #dce8ff;
-  --color-text-secondary: #7090b0;
-  --color-text-muted:     #4a6080;
-  --color-accent:         #1e88e5;
-  --color-accent-hover:   #1565c0;
-  --color-accent-subtle:  rgba(30, 136, 229, 0.12);
-  --color-accent-2:       #90caf9;
+  --color-surface:        #ffffff;
+  --color-surface-2:      #f0f6ff;
+  --color-panel:          #ffffff;
+  --color-border:         #b8d4f0;
+  --color-border-light:   #deeeff;
+  --color-text-primary:   #0a2460;
+  --color-text-secondary: #1a5fb4;
+  --color-text-muted:     #8098b0;
+  --color-accent:         #1e6fcc;
+  --color-accent-hover:   #0d2d6e;
+  --color-accent-subtle:  #deeeff;
+  --color-accent-2:       #64c8ff;
   --font-main: 'Syne', sans-serif;
   --font-mono: 'Space Mono', monospace;
 }
