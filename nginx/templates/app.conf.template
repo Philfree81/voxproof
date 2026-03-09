@@ -1,0 +1,70 @@
+# ── HTTP → HTTPS redirect + challenge certbot ───────────────────────────────
+server {
+    listen 80;
+    server_name ${APP_DOMAIN} api.${APP_DOMAIN} audio.${APP_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$$host$$request_uri;
+    }
+}
+
+# ── Frontend : app.client.com ────────────────────────────────────────────────
+server {
+    listen 443 ssl http2;
+    server_name ${APP_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem;
+
+    location / {
+        proxy_pass         http://frontend:80;
+        proxy_set_header   Host              $$host;
+        proxy_set_header   X-Real-IP         $$remote_addr;
+        proxy_set_header   X-Forwarded-For   $$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $$scheme;
+    }
+}
+
+# ── Backend API : api.client.com ─────────────────────────────────────────────
+server {
+    listen 443 ssl http2;
+    server_name api.${APP_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem;
+
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass         http://backend:4000;
+        proxy_set_header   Host              $$host;
+        proxy_set_header   X-Real-IP         $$remote_addr;
+        proxy_set_header   X-Forwarded-For   $$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $$scheme;
+        proxy_read_timeout 300s;
+    }
+}
+
+# ── Processor audio : audio.client.com ──────────────────────────────────────
+server {
+    listen 443 ssl http2;
+    server_name audio.${APP_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem;
+
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass         http://processor:5000;
+        proxy_set_header   Host              $$host;
+        proxy_set_header   X-Real-IP         $$remote_addr;
+        proxy_set_header   X-Forwarded-For   $$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $$scheme;
+        proxy_read_timeout 600s;
+    }
+}

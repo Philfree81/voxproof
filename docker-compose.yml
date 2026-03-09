@@ -1,58 +1,144 @@
 version: '3.9'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: voxproof_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: voxproof
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: voxproof
-    ports:
-      - '5433:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U voxproof']
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
+  # ── Reverse proxy + SSL ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: voxproof_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - certbot_webroot:/var/www/certbot:ro
+      - certbot_certs:/etc/letsencrypt:ro
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN}
+      - BLOG_DOMAIN=${BLOG_DOMAIN}
+    depends_on:
+      - frontend
+      - backend
+      - processor
+    networks:
+      - voxproof_net
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: voxproof_certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_webroot:/var/www/certbot
+      - certbot_certs:/etc/letsencrypt
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
+        VITE_STRIPE_PRICE_ANNUAL: ${VITE_STRIPE_PRICE_ANNUAL}
+        VITE_STRIPE_PRICE_LIFETIME: ${VITE_STRIPE_PRICE_LIFETIME}
+        VITE_CONTRACT_ADDRESS: ${VITE_CONTRACT_ADDRESS}
+        VITE_AVALANCHE_CHAIN_ID: ${VITE_AVALANCHE_CHAIN_ID}
+    container_name: voxproof_frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - voxproof_net
+
+  # ── Backend ──────────────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: voxproof_backend
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql://voxproof:password@postgres:5432/voxproof
-    ports:
-      - '4000:4000'
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PROCESSOR_URL: http://processor:5000
+      NODE_ENV: production
+    expose:
+      - "4000"
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+    networks:
+      - voxproof_net
 
-  frontend:
+  # ── Python processor ─────────────────────────────────────────────────────────
+  processor:
     build:
-      context: ./frontend
+      context: ./processor
       dockerfile: Dockerfile
-    container_name: voxproof_frontend
+    container_name: voxproof_processor
     restart: unless-stopped
-    env_file:
-      - .env
-    ports:
-      - '5173:5173'
-    depends_on:
-      - backend
+    expose:
+      - "5000"
+    networks:
+      - voxproof_net
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: voxproof_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-voxproof}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-voxproof}
+    expose:
+      - "5432"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-voxproof}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voxproof_net
+
+  # ── Ghost (optionnel) ────────────────────────────────────────────────────────
+  ghost:
+    image: ghost:5-alpine
+    container_name: voxproof_ghost
+    restart: unless-stopped
+    profiles: ["ghost"]
+    environment:
+      url: https://${BLOG_DOMAIN}
+      database__client: sqlite3
+      database__connection__filename: /var/lib/ghost/content/data/ghost.db
+      mail__transport: SMTP
+      mail__options__host: smtp-relay.brevo.com
+      mail__options__port: 587
+      mail__options__auth__user: ${BREVO_SMTP_USER}
+      mail__options__auth__pass: ${BREVO_SMTP_PASS}
+    expose:
+      - "2368"
+    volumes:
+      - ghost_content:/var/lib/ghost/content
+    networks:
+      - voxproof_net
+
+networks:
+  voxproof_net:
+    driver: bridge
 
 volumes:
   postgres_data:
+  certbot_webroot:
+  certbot_certs:
+  ghost_content:
