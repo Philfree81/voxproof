@@ -22,7 +22,11 @@ app.use(cors({ origin: env.frontendUrl, credentials: true }))
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'))
 
 // ─── Rate limiting ──────────────────────────────────────
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 })
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  skip: (req) => req.path.endsWith('/status'), // polling endpoint exempt
+})
 app.use(limiter)
 
 // ─── Stripe webhook (raw body before json parse) ────────

@@ -577,33 +577,7 @@ export default function SessionPage() {
   if (step === 'processing') return <ProcessingScreen />
 
   // ─── QUEUED ───────────────────────────────────────────────────────────────
-  if (step === 'queued') return (
-    <Layout>
-      <div className="max-w-2xl mx-auto py-16 flex flex-col items-center gap-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-th-accent-subtle flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-th-accent border-t-transparent rounded-full animate-spin" style={{ borderWidth: '3px' }} />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-th-text-primary">Traitement en cours…</h2>
-          <p className="text-th-text-muted text-sm mt-2">Votre voix est en cours d'analyse et d'ancrage sur la blockchain.</p>
-          <p className="text-th-text-muted text-sm mt-1">Vous recevrez votre certificat par email dès que c'est prêt.</p>
-        </div>
-        <div className="w-full max-w-sm space-y-2 text-sm text-left">
-          {[
-            'Analyse acoustique en cours…',
-            'Modélisation biométrique…',
-            'Ancrage blockchain…',
-            'Génération du certificat…',
-          ].map((label, i) => (
-            <div key={i} className="flex items-center gap-2 text-th-text-muted">
-              <div className="w-1.5 h-1.5 rounded-full bg-th-accent animate-pulse" style={{ animationDelay: `${i * 0.4}s` }} />
-              {label}
-            </div>
-          ))}
-        </div>
-      </div>
-    </Layout>
-  )
+  if (step === 'queued') return <ProcessingScreen />
 
   // ─── DONE ─────────────────────────────────────────────────────────────────
   if (step === 'done' && result) return (
