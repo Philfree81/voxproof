@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useThemeStore, Theme } from '../../store/themeStore'
 import LogoSobre from './LogoSobre'
 import MicIcon from './MicIcon'
+import api from '../../services/api'
 
 // ─── Theme definitions (shared with dropdown) ────────────────────────────────
 const THEMES: { id: Theme; label: string; colors: [string, string] }[] = [
@@ -56,7 +57,36 @@ export default function Navbar() {
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [credits, setCredits] = useState<number | null>(null)
+  const [purchasing, setPurchasing] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Fetch credits when dropdown opens
+  useEffect(() => {
+    if (dropdownOpen && user) {
+      api.get('/payments/credits').then(r => setCredits(r.data.available)).catch(() => {})
+    }
+  }, [dropdownOpen])
+
+  async function purchase(priceId: string) {
+    setPurchasing(true)
+    setDropdownOpen(false)
+    const stripeTab = window.open('', '_blank')
+    try {
+      const { data } = await api.post('/payments/purchase', { priceId })
+      if (stripeTab) stripeTab.location.href = data.url
+      else window.location.href = data.url
+      const prev = credits ?? 0
+      const deadline = Date.now() + 10 * 60 * 1000
+      const interval = setInterval(async () => {
+        if (Date.now() > deadline) { clearInterval(interval); setPurchasing(false); return }
+        try {
+          const r = await api.get('/payments/credits')
+          if (r.data.available > prev) { clearInterval(interval); stripeTab?.close(); setCredits(r.data.available); setPurchasing(false) }
+        } catch { /* ignore */ }
+      }, 2000)
+    } catch { stripeTab?.close(); setPurchasing(false) }
+  }
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -136,6 +166,37 @@ export default function Navbar() {
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-th-text-secondary hover:bg-surface-2 hover:text-th-text-primary transition-colors">
                         <span className="text-base">👤</span> Mon profil
                       </Link>
+                    </div>
+
+                    {/* Credits */}
+                    <div className="px-4 py-3 border-t border-th-border-light">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-th-text-muted uppercase tracking-wide">Crédits</p>
+                        {credits !== null && (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${credits > 0 ? 'text-green-700 bg-green-50' : 'text-th-text-muted bg-surface-2'}`}>
+                            {credits} disponible{credits > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      {purchasing ? (
+                        <p className="text-xs text-th-accent flex items-center gap-1.5">
+                          <span className="w-3 h-3 border border-th-accent border-t-transparent rounded-full animate-spin inline-block" />
+                          En attente de paiement…
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_ANNUAL)}
+                            className="flex flex-col items-center py-2 px-1 rounded-lg border border-th-border text-xs hover:border-th-accent hover:bg-th-accent-subtle transition-colors">
+                            <span className="font-semibold text-th-text-primary">1 crédit</span>
+                            <span className="text-th-accent font-bold">14 €</span>
+                          </button>
+                          <button onClick={() => purchase(import.meta.env.VITE_STRIPE_PRICE_LIFETIME)}
+                            className="flex flex-col items-center py-2 px-1 rounded-lg bg-th-accent text-xs hover:bg-th-accent-hover transition-colors">
+                            <span className="font-semibold text-white">Pack 5</span>
+                            <span className="text-white font-bold">57 €</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Theme switcher */}
