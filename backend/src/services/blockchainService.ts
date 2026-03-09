@@ -14,11 +14,11 @@ function sendRpcAlert(message: string) {
 }
 
 const ABI = [
-  'function anchorProof(bytes32 audioHash, bytes32 voiceHash, string calldata ipfsCid, string calldata title) external returns (uint256)',
+  'function anchorProof(bytes32 audioHash, bytes32 voiceHash, string calldata title) external returns (uint256)',
   'function getProofsByVoiceHash(bytes32 voiceHash) external view returns (uint256[])',
   'function verifyHash(bytes32 audioHash) external view returns (bool exists, uint256 proofId, bool revoked)',
   'function totalProofs() external view returns (uint256)',
-  'event ProofAnchored(uint256 indexed proofId, address indexed owner, bytes32 indexed audioHash, bytes32 voiceHash, string ipfsCid, string title, uint256 timestamp)',
+  'event ProofAnchored(uint256 indexed proofId, address indexed owner, bytes32 indexed audioHash, bytes32 voiceHash, string title, uint256 timestamp)',
 ]
 
 function getProvider() {
@@ -52,7 +52,7 @@ export async function anchorHashOnChain(
   ) as `0x${string}`
 
   try {
-    const tx = await contract.anchorProof(hashBytes, voiceHashBytes, sessionId, 'VoxProof Vocal Signature')
+    const tx = await contract.anchorProof(hashBytes, voiceHashBytes, 'VoxProof Vocal Signature')
     const receipt = await tx.wait()
     return {
       txHash: receipt.hash,
