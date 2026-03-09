@@ -5,6 +5,7 @@ const THEMES: { id: Theme; label: string; icon: string }[] = [
   { id: 'classic',   label: 'Classic',      icon: '☀️' },
   { id: 'futuriste', label: 'Futuriste',    icon: '⚡' },
   { id: 'blue',      label: 'VoxProof Blue', icon: '🔷' },
+  { id: 'sobre',     label: 'Sobre',        icon: '⚖️' },
 ]
 
 export default function ThemeSwitcher() {

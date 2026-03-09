@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 
-export type Theme = 'classic' | 'futuriste' | 'blue'
+export type Theme = 'classic' | 'futuriste' | 'blue' | 'sobre'
 
-const ALL_THEMES: Theme[] = ['classic', 'futuriste', 'blue']
+const ALL_THEMES: Theme[] = ['classic', 'futuriste', 'blue', 'sobre']
 const STORAGE_KEY = 'voxproof-theme'
 
 function applyTheme(theme: Theme) {

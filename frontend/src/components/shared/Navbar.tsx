@@ -3,11 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
 import ThemeSwitcher from './ThemeSwitcher'
+import LogoSobre from './LogoSobre'
 
 function BrandLogo({ onClick }: { onClick: () => void }) {
   const { theme } = useThemeStore()
 
-  if (theme === 'blue') {
+  if (theme === 'blue' || theme === 'futuriste') {
     return (
       <Link to="/" className="flex items-center" onClick={onClick}>
         <img src="/logo.jpeg" alt="VoxProof" className="h-12 w-auto" />
@@ -15,16 +16,10 @@ function BrandLogo({ onClick }: { onClick: () => void }) {
     )
   }
 
-  if (theme === 'futuriste') {
+  if (theme === 'sobre') {
     return (
-      <Link to="/" className="flex items-center gap-2" onClick={onClick}>
-        <span className="text-2xl">🎙️</span>
-        <span
-          className="font-bold text-lg tracking-widest uppercase text-th-accent"
-          style={{ fontFamily: 'Orbitron, monospace', textShadow: '0 0 12px var(--color-accent)' }}
-        >
-          VoxProof
-        </span>
+      <Link to="/" className="flex items-center" onClick={onClick}>
+        <LogoSobre className="h-10 w-auto" />
       </Link>
     )
   }

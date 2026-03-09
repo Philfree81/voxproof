@@ -65,3 +65,29 @@ html.theme-blue h2 {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+
+/* ── SOBRE (Notaire) ──────────────────────────────────── */
+html.theme-sobre {
+  --color-surface:        #faf8f4;
+  --color-surface-2:      #f2ede3;
+  --color-panel:          #ffffff;
+  --color-border:         #d4c9b0;
+  --color-border-light:   #e8e0d0;
+  --color-text-primary:   #1a1a2e;
+  --color-text-secondary: #4a4a6a;
+  --color-text-muted:     #8a8aaa;
+  --color-accent:         #2c3e6b;
+  --color-accent-hover:   #1a2545;
+  --color-accent-subtle:  rgba(44, 62, 107, 0.08);
+  --color-accent-2:       #c9a84c;
+  --font-main: 'Playfair Display', Georgia, serif;
+  --font-mono: 'Courier New', monospace;
+}
+
+html.theme-sobre h1,
+html.theme-sobre h2,
+html.theme-sobre h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
